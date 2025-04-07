@@ -57,17 +57,17 @@ This document outlines the phased implementation plan for the mcp-graph project.
 
 ### Phase 4: API Layer and Service Implementation
 
-- [ ] **Core Service Layer**
-  - [ ] Implement knowledge manager service (internal/service)
-  - [ ] Create service interfaces for business logic
-  - [ ] Implement data validation and processing logic
+- [x] **Core Service Layer**
+  - [x] Implement knowledge manager service (internal/service)
+  - [x] Create service interfaces for business logic
+  - [x] Implement data validation and processing logic
 
-- [ ] **API Development**
-  - [ ] Set up HTTP server in cmd/server
-  - [ ] Implement API handlers for CRUD operations
-  - [ ] Create middleware for authentication and logging
-  - [ ] Implement error handling
-  - [ ] Document API endpoints
+- [x] **API Development**
+  - [x] Set up HTTP server in cmd/server
+  - [x] Implement API handlers for CRUD operations
+  - [x] Create middleware for authentication and logging
+  - [x] Implement error handling
+  - [x] Document API endpoints
 
 - [x] **Main Application**
   - [x] Implement application entry point (cmd/server/main.go)
@@ -142,11 +142,35 @@ The next phase of development should focus on:
 
 2. **Testing**
    - Writing unit tests for the Dgraph implementation
+   - Writing unit tests for the service layer
    - Adding integration tests for the MCP server
 
 3. **Future Enhancements**
    - Developing a lightweight visual graph explorer
    - Adding import/export functionality
    - Implementing performance optimisations
+
+### Recent Progress (April 8, 2025)
+
+We have made significant progress on the service layer and API implementation:
+
+1. **Knowledge Manager Service**
+   - Created a service interface with high-level operations for managing the knowledge graph
+   - Implemented document operations (create, get, update, delete, search)
+   - Implemented concept operations (create, get, link, search)
+   - Added schema initialisation functionality
+
+2. **MCP Server Enhancement**
+   - Updated the MCP server to use the service layer
+   - Added new tools for document and concept management
+   - Maintained backward compatibility with existing tools
+
+3. **RESTful API Implementation**
+   - Created a RESTful API server using gorilla/mux
+   - Implemented document endpoints (create, get, update, delete, search)
+   - Implemented concept endpoints (create, get, link, search)
+   - Added query and schema endpoints
+   - Implemented logging and error handling middleware
+   - Integrated the API server with the main application
 
 This implementation plan provides a structured approach to building the mcp-graph system, with each phase building upon the previous ones. As we complete each phase, we'll update this checklist to track our progress.
