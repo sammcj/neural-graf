@@ -1,0 +1,12 @@
+**/.vscode
+**/.env
+**/node_modules
+**/dist
+**/coverage
+**/build
+**/bin
+**/.DS_Store
+**/*.log
+**/*.swp
+**/*.tmp
+**/mcp-graph
