@@ -4,9 +4,9 @@ A Golang-based knowledge graph system that integrates Dgraph with optional MCP-g
 
 mcp-graph is a lightweight, self-hosted knowledge graph system built in Go with a modular architecture that allows for flexible deployment options. The core system provides efficient data ingestion, graph-based storage, and powerful querying capabilities using Dgraph as the primary database. The system is designed with optional components that can be enabled based on your specific needs:
 
+- **MCP Server**: Deploy as a Model Context Protocol server (using mark3labs/mcp-go) to provide standardized LLM tool interfaces, enabling seamless integration with various AI applications. Supports both stdio and SSE modes for flexible connectivity.
 - **Optional LLM Integration**: Connect to any OpenAI-compatible API to enhance your knowledge graph with AI-powered summaries, question answering, and content generation. The system works perfectly well without LLM integration if you prefer a pure graph database solution.
 - **Optional Vector Embeddings**: Integrate with ChromaDB (via amikos-tech/chroma-go) to add semantic search capabilities, allowing for similarity-based queries and content retrieval. The embedding process can use any compatible embedding model of your choice.
-- **Optional MCP Server**: Deploy as a Model Context Protocol server (using mark3labs/mcp-go) to provide standardized LLM tool interfaces, enabling seamless integration with various AI applications. Supports both stdio and SSE modes for flexible connectivity.
 
 The system's clean, modular design makes it ideal for knowledge management applications, research tools, and content organization systems, with each component being independently configurable. Start with just the core graph database functionality and incrementally add LLM capabilities, vector search, or MCP protocol support as your needs evolve.
 
@@ -26,8 +26,8 @@ graph TB
     subgraph Core Components
         B --> C[Knowledge Manager]
         C --> D[Graph Store]
-        C --> E[Optional Vector Store]
         C --> F[Optional LLM Service]
+        C --> E[Optional Vector Store]
     end
     subgraph Optional Components
         G[MCP Server]
@@ -61,9 +61,9 @@ knowledge-graph-go/
 │   ├── config/                 # Configuration management
 │   ├── graph/                  # Knowledge graph implementation
 │   │   └── dgraph/             # Dgraph implementation
+│   ├── mcp/                    # MCP server
 │   ├── llm/                    # LLM client interface
 │   │   └── openai/             # Optional OpenAI-compatible client
-│   ├── mcp/                    # Optional MCP server
 │   ├── vector/                 # Optional Vector DB abstraction
 │   │   └── chroma/             # Optional ChromaDB implementation
 │   └── service/                # Core business logic
