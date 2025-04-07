@@ -95,7 +95,7 @@ This document outlines the phased implementation plan for the mcp-graph project.
 
 - [x] **Documentation**
   - [x] Complete README with setup and usage instructions
-  - [ ] Create API documentation
+  - [x] Create API documentation
   - [x] Add code examples
   - [x] Document configuration options
 
@@ -146,13 +146,13 @@ The next phase of development should focus on:
    - Adding integration tests for the MCP server
 
 3. **Future Enhancements**
-   - Developing a lightweight visual graph explorer
+   - Developing a lightweight visual graph explorer, but we need to make sure we don't end up adding a big bloated javascript ecosystem to the project
    - Adding import/export functionality
    - Implementing performance optimisations
 
 ### Recent Progress (April 8, 2025)
 
-We have made significant progress on the service layer and API implementation:
+We have completed Phase 4 of the implementation plan, focusing on the service layer and API implementation:
 
 1. **Knowledge Manager Service**
    - Created a service interface with high-level operations for managing the knowledge graph
@@ -172,5 +172,24 @@ We have made significant progress on the service layer and API implementation:
    - Added query and schema endpoints
    - Implemented logging and error handling middleware
    - Integrated the API server with the main application
+   - Created comprehensive API documentation in docs/api.md
+
+4. **Project Architecture**
+   - The project now has a clean, modular architecture:
+     - **Graph Interface**: Defines the core operations for the knowledge graph
+     - **Dgraph Implementation**: Implements the graph interface using Dgraph
+     - **Service Layer**: Provides high-level business logic and domain operations
+     - **MCP Server**: Exposes the knowledge graph via the Model Context Protocol
+     - **API Server**: Provides a RESTful API for non-MCP clients
+
+### Running the Application
+
+The system can be run using the following command:
+
+```bash
+go run cmd/server/main.go
+```
+
+This will start both the MCP server and the RESTful API server, allowing clients to interact with the knowledge graph through either interface.
 
 This implementation plan provides a structured approach to building the mcp-graph system, with each phase building upon the previous ones. As we complete each phase, we'll update this checklist to track our progress.
