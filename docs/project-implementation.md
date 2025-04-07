@@ -37,7 +37,25 @@ This document outlines the phased implementation plan for the mcp-graph project.
   - [ ] Create Dockerfile for the application
   - [ ] Create docker-compose.yml with Dgraph service
 
-### Phase 3: API Layer and Service Implementation
+### Phase 3: MCP Server Integration
+
+- [ ] **MCP Server Setup**
+  - [ ] Implement MCP server with mcp-go
+  - [ ] Create tool definitions
+  - [ ] Implement tool handlers
+  - [ ] Add resource capabilities
+
+- [ ] **Knowledge Graph Tools**
+  - [ ] Create query tool for graph access
+  - [ ] Add document creation and management tools
+  - [ ] Write unit tests for MCP tools
+
+- [ ] **Server Modes**
+  - [ ] Implement stdio server mode
+  - [ ] Add SSE server mode
+  - [ ] Create MCP client configuration example
+
+### Phase 4: API Layer and Service Implementation
 
 - [ ] **Core Service Layer**
   - [ ] Implement knowledge manager service (internal/service)
@@ -56,25 +74,6 @@ This document outlines the phased implementation plan for the mcp-graph project.
   - [ ] Set up graceful shutdown handling
   - [ ] Configure logging and monitoring
 
-### Phase 4: MCP Server Integration
-
-- [ ] **MCP Server Setup**
-  - [ ] Implement MCP server with mcp-go
-  - [ ] Create tool definitions
-  - [ ] Implement tool handlers
-  - [ ] Add resource capabilities
-
-- [ ] **Knowledge Graph Tools**
-  - [ ] Create query tool for graph access
-  - [ ] Implement summary generation tool
-  - [ ] Add document creation and management tools
-  - [ ] Write unit tests for MCP tools
-
-- [ ] **Server Modes**
-  - [ ] Implement stdio server mode
-  - [ ] Add SSE server mode
-  - [ ] Create MCP client configuration example
-
 ### Phase 5: Enhancements and Future Features
 
 - [ ] **Visual Graph Explorer**
@@ -92,39 +91,7 @@ This document outlines the phased implementation plan for the mcp-graph project.
   - [ ] Add connection pooling
   - [ ] Optimise query performance
 
-### Phase 6: Vector Store Integration (Optional)
-
-- [ ] **Vector Store Interface**
-  - [ ] Define vector store interface (internal/vector/vector.go)
-  - [ ] Create model for vector documents
-
-- [ ] **ChromaDB Integration**
-  - [ ] Implement ChromaDB client
-  - [ ] Implement vector store interface for ChromaDB
-  - [ ] Add collection management functionality
-  - [ ] Implement document operations
-  - [ ] Write unit tests for ChromaDB implementation
-  - [ ] Update docker-compose.yml to include ChromaDB service
-
-### Phase 7: LLM Integration (Optional)
-
-- [ ] **LLM Service Interface**
-  - [ ] Define LLM service interface (internal/llm/llm.go)
-  - [ ] Create models for LLM requests and responses
-
-- [ ] **OpenAI-compatible Client**
-  - [ ] Implement OpenAI client that allows for using any OpenAI-compatible API (e.g. http://localhost:11434/v1 with Ollama and similar)
-  - [ ] Add text generation capabilities
-  - [ ] Implement embedding generation
-  - [ ] Add streaming support
-  - [ ] Write unit tests for OpenAI client
-
-- [ ] **Integration with Graph and Vector Stores**
-  - [ ] Connect LLM service with knowledge manager
-  - [ ] Implement AI-powered summaries and content generation
-  - [ ] Add embedding generation for vector search
-
-### Phase 8: Documentation and Testing
+### Phase 6: Documentation and Testing
 
 - [ ] **Documentation**
   - [ ] Complete README with setup and usage instructions
@@ -138,4 +105,4 @@ This document outlines the phased implementation plan for the mcp-graph project.
   - [ ] Set up CI/CD pipeline
   - [ ] Perform security testing
 
-This implementation plan provides a structured approach to building the mcp-graph system, with each phase building upon the previous ones. The plan is designed to be flexible, allowing for the optional components to be implemented or skipped as needed. As we complete each phase, we'll update this checklist to track our progress.
+This implementation plan provides a structured approach to building the mcp-graph system, with each phase building upon the previous ones. As we complete each phase, we'll update this checklist to track our progress.
