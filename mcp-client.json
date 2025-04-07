@@ -1,0 +1,119 @@
+{
+  "name": "mcp-graph",
+  "version": "1.0.0",
+  "description": "Knowledge Graph MCP Server",
+  "connection": {
+    "type": "sse",
+    "url": "http://localhost:3000"
+  },
+  "tools": [
+    {
+      "name": "query_knowledge_graph",
+      "description": "Query the knowledge graph",
+      "parameters": {
+        "query": {
+          "type": "string",
+          "description": "The GraphQL query to execute",
+          "required": true
+        },
+        "params": {
+          "type": "object",
+          "description": "Optional query parameters"
+        }
+      }
+    },
+    {
+      "name": "create_node",
+      "description": "Create a new node in the knowledge graph",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "The type of node to create",
+          "required": true
+        },
+        "properties": {
+          "type": "object",
+          "description": "Node properties",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "get_node",
+      "description": "Get a node from the knowledge graph by ID",
+      "parameters": {
+        "id": {
+          "type": "string",
+          "description": "The ID of the node to retrieve",
+          "required": true
+        }
+      }
+    },
+    {
+      "name": "create_edge",
+      "description": "Create a new edge between two nodes",
+      "parameters": {
+        "fromId": {
+          "type": "string",
+          "description": "The ID of the source node",
+          "required": true
+        },
+        "toId": {
+          "type": "string",
+          "description": "The ID of the target node",
+          "required": true
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of relationship",
+          "required": true
+        },
+        "properties": {
+          "type": "object",
+          "description": "Edge properties"
+        }
+      }
+    },
+    {
+      "name": "upsert_schema",
+      "description": "Update or create the graph schema",
+      "parameters": {
+        "schema": {
+          "type": "string",
+          "description": "The schema definition",
+          "required": true
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "name": "Create a document node",
+      "tool": "create_node",
+      "parameters": {
+        "type": "Document",
+        "properties": {
+          "title": "Getting Started with MCP-Graph",
+          "content": "This is a sample document to demonstrate the knowledge graph capabilities.",
+          "tags": ["documentation", "example"]
+        }
+      }
+    },
+    {
+      "name": "Query all documents",
+      "tool": "query_knowledge_graph",
+      "parameters": {
+        "query": "{ documents(func: eq(type, \"Document\")) { uid title content tags } }"
+      }
+    },
+    {
+      "name": "Create a relationship",
+      "tool": "create_edge",
+      "parameters": {
+        "fromId": "<document-id>",
+        "toId": "<concept-id>",
+        "type": "REFERENCES_TO"
+      }
+    }
+  ]
+}
