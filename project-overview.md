@@ -74,7 +74,7 @@ knowledge-graph-go/
 └── .gitignore                  # Git ignore file
 └── .env.example                # Example environment variables
 └── Dockerfile                  # Dockerfile for containerisation
-└── docker-compose.yml          # Example Docker Compose for containerised deployment
+└── docker-compose.yml          # Example Docker Compose for containerised deployment that includes Dgraph and Chroma
 └── mcp-client.json             # Example MCP client configuration (for use with Cline, Claude Desktop etc.)
 └── README.md                   # Project documentation
 ```
