@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -13,22 +15,68 @@ import (
 	"github.com/sammcj/mcp-graph/internal/service"
 )
 
+// Logger defines the interface for logging
+type Logger interface {
+	Printf(format string, v ...interface{})
+	Println(v ...interface{})
+}
+
+// conditionalLogger is a logger that only logs when enabled
+type conditionalLogger struct {
+	enabled bool
+	logger  *log.Logger
+}
+
+// newConditionalLogger creates a new conditional logger
+func newConditionalLogger(enabled bool) *conditionalLogger {
+	var output io.Writer
+	if enabled {
+		output = log.Writer()
+	} else {
+		output = ioutil.Discard
+	}
+
+	return &conditionalLogger{
+		enabled: enabled,
+		logger:  log.New(output, "", log.LstdFlags),
+	}
+}
+
+// Printf logs a formatted message if enabled
+func (l *conditionalLogger) Printf(format string, v ...interface{}) {
+	if l.enabled {
+		l.logger.Printf(format, v...)
+	}
+}
+
+// Println logs a message if enabled
+func (l *conditionalLogger) Println(v ...interface{}) {
+	if l.enabled {
+		l.logger.Println(v...)
+	}
+}
+
 // Server represents the API server
 type Server struct {
 	router   *mux.Router
 	server   *http.Server
 	service  service.KnowledgeManager
 	graph    graph.Store
+	logger   Logger
 }
 
 // NewServer creates a new API server
 func NewServer(port int, service service.KnowledgeManager, graph graph.Store) *Server {
 	router := mux.NewRouter()
 
+	// By default, disable logging (will be enabled in SSE mode)
+	logger := newConditionalLogger(false)
+
 	server := &Server{
 		router:  router,
 		service: service,
 		graph:   graph,
+		logger:  logger,
 		server: &http.Server{
 			Addr:         fmt.Sprintf(":%d", port),
 			Handler:      router,
@@ -77,8 +125,18 @@ func (s *Server) setupRoutes() {
 
 // Start starts the API server
 func (s *Server) Start() error {
-	log.Printf("Starting API server on %s", s.server.Addr)
+	s.logger.Printf("Starting API server on %s", s.server.Addr)
 	return s.server.ListenAndServe()
+}
+
+// EnableLogging enables or disables logging
+func (s *Server) EnableLogging(enabled bool) {
+	if cl, ok := s.logger.(*conditionalLogger); ok {
+		cl.enabled = enabled
+	} else {
+		// If not a conditionalLogger, replace with one
+		s.logger = newConditionalLogger(enabled)
+	}
 }
 
 // Shutdown gracefully shuts down the API server
@@ -91,7 +149,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
-		log.Printf("%s %s %s", r.Method, r.RequestURI, time.Since(start))
+		s.logger.Printf("%s %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
 }
 
@@ -112,7 +170,8 @@ func respondWithError(w http.ResponseWriter, code int, message string) {
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	response, err := json.Marshal(payload)
 	if err != nil {
-		log.Printf("Error marshalling JSON response: %v", err)
+		// This is a server-side error, but we don't want to log it in non-SSE mode
+		// The error will be reflected in the HTTP response
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

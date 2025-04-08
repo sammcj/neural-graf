@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"flag"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -17,6 +19,41 @@ import (
 	"github.com/sammcj/mcp-graph/internal/service"
 )
 
+// conditionalLogger is a logger that only logs when enabled
+type conditionalLogger struct {
+	enabled bool
+	logger  *log.Logger
+}
+
+// newConditionalLogger creates a new conditional logger
+func newConditionalLogger(enabled bool) *conditionalLogger {
+	var output io.Writer
+	if enabled {
+		output = os.Stderr
+	} else {
+		output = ioutil.Discard
+	}
+
+	return &conditionalLogger{
+		enabled: enabled,
+		logger:  log.New(output, "", log.LstdFlags),
+	}
+}
+
+// Printf logs a formatted message if enabled
+func (l *conditionalLogger) Printf(format string, v ...interface{}) {
+	if l.enabled {
+		l.logger.Printf(format, v...)
+	}
+}
+
+// Println logs a message if enabled
+func (l *conditionalLogger) Println(v ...interface{}) {
+	if l.enabled {
+		l.logger.Println(v...)
+	}
+}
+
 func main() {
 	// Parse command line flags
 	configPath := flag.String("config", "config.yaml", "Path to configuration file")
@@ -28,6 +65,9 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
+	// Create a conditional logger that only logs in SSE mode
+	logger := newConditionalLogger(cfg.MCP.UseSSE)
+
 	// Initialize graph store
 	graphStore, err := dgraph.NewDgraphStore(cfg.Dgraph.Address)
 	if err != nil {
@@ -38,9 +78,9 @@ func main() {
 	knowledgeService := service.NewService(graphStore)
 
 	// Initialize schema
-	log.Println("Initialising knowledge graph schema...")
+	logger.Println("Initialising knowledge graph schema...")
 	if err := knowledgeService.InitialiseSchema(context.Background()); err != nil {
-		log.Printf("Warning: Failed to initialise schema: %v", err)
+		logger.Printf("Warning: Failed to initialise schema: %v", err)
 	}
 
 	// Create API server
@@ -49,6 +89,9 @@ func main() {
 		knowledgeService,
 		graphStore,
 	)
+
+	// Enable API server logging only in SSE mode
+	apiServer.EnableLogging(cfg.MCP.UseSSE)
 
 	// Create MCP server
 	mcpServer := mcp.NewServer(
@@ -67,15 +110,15 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		sig := <-sigCh
-		log.Printf("Received signal %v, shutting down...", sig)
+		logger.Printf("Received signal %v, shutting down...", sig)
 		cancel()
 	}()
 
 	// Start API server
 	go func() {
-		log.Printf("Starting API server on port %d", cfg.API.Port)
+		logger.Printf("Starting API server on port %d", cfg.API.Port)
 		if err := apiServer.Start(); err != nil && err != http.ErrServerClosed {
-			log.Printf("API server error: %v", err)
+			logger.Printf("API server error: %v", err)
 			cancel()
 		}
 	}()
@@ -84,18 +127,20 @@ func main() {
 	if cfg.MCP.UseSSE {
 		// Start SSE server in a goroutine
 		go func() {
-			log.Printf("Starting MCP SSE server on %s", cfg.MCP.Address)
+			logger.Printf("Starting MCP SSE server on %s", cfg.MCP.Address)
 			if err := mcpServer.ServeSSE(cfg.MCP.Address); err != nil {
-				log.Printf("MCP SSE server error: %v", err)
+				logger.Printf("MCP SSE server error: %v", err)
 				cancel()
 			}
 		}()
 	} else {
-		// Start stdio server
-		log.Println("Starting MCP stdio server")
+		// Start stdio server - no logging in this mode
 		go func() {
 			if err := mcpServer.ServeStdio(); err != nil {
-				log.Printf("MCP stdio server error: %v", err)
+				// Only log fatal errors that cause the server to exit
+				if cfg.MCP.UseSSE {
+					log.Printf("MCP stdio server error: %v", err)
+				}
 				cancel()
 			}
 		}()
@@ -105,7 +150,7 @@ func main() {
 	<-ctx.Done()
 
 	// Graceful shutdown
-	log.Println("Shutting down...")
+	logger.Println("Shutting down...")
 
 	// Add a small delay to allow for graceful shutdown
 	time.Sleep(100 * time.Millisecond)
@@ -116,8 +161,8 @@ func main() {
 
 	// Shutdown API server
 	if err := apiServer.Shutdown(shutdownCtx); err != nil {
-		log.Printf("API server shutdown error: %v", err)
+		logger.Printf("API server shutdown error: %v", err)
 	}
 
-	log.Println("Shutdown complete")
+	logger.Println("Shutdown complete")
 }
