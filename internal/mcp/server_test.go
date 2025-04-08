@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/sammcj/mcp-graph/internal/graph"
-	graphmocks "github.com/sammcj/mcp-graph/internal/mcp/mocks"
+	"github.com/sammcj/mcp-graph/internal/mcp/mocks"
+	"github.com/sammcj/mcp-graph/internal/service"
 )
 
 // TestHandleQueryTool tests the query_knowledge_graph tool handler
@@ -20,9 +21,9 @@ func TestHandleQueryTool(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	// Create mock graph store
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -54,13 +55,10 @@ func TestHandleQueryTool(t *testing.T) {
 	mockGraph.EXPECT().Query(gomock.Any(), gomock.Eq(query), gomock.Eq(params)).Return(mockResults, nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"query":  query,
-				"params": params,
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"query":  query,
+		"params": params,
 	}
 
 	// Call the handler
@@ -70,9 +68,25 @@ func TestHandleQueryTool(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
+	// Use reflection to access the fields
+	assert.Len(t, result.Content, 1, "Expected one content item")
+
+	// Get the content item
+	contentVal := reflect.ValueOf(result.Content[0])
+
+	// Get the Type field
+	typeField := contentVal.FieldByName("Type")
+	assert.True(t, typeField.IsValid(), "Type field not found")
+	assert.Equal(t, "text", typeField.String(), "Expected content type to be text")
+
+	// Get the Text field
+	textField := contentVal.FieldByName("Text")
+	assert.True(t, textField.IsValid(), "Text field not found")
+	resultText := textField.String()
+
 	// Verify the result content
 	var resultData []map[string]interface{}
-	err = json.Unmarshal([]byte(result.Result.(string)), &resultData)
+	err = json.Unmarshal([]byte(resultText), &resultData)
 	assert.NoError(t, err)
 	assert.Len(t, resultData, 2)
 	assert.Equal(t, "0x1", resultData[0]["uid"])
@@ -80,44 +94,11 @@ func TestHandleQueryTool(t *testing.T) {
 	assert.Equal(t, "Content 1", resultData[0]["content"])
 }
 
-// TestHandleQueryTool_Error tests the query_knowledge_graph tool handler with an error
-func TestHandleQueryTool_Error(t *testing.T) {
-	// Create a new mock controller
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	// Create mock graph store
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
-
-	// Create MCP server with mocks
-	server := &Server{
-		graph:   mockGraph,
-		service: mockService,
-	}
-
-	// Test query
-	query := "{ documents(func: type(Document)) { uid title content } }"
-
-	// Set up expectations with error
-	mockError := errors.New("query failed")
-	mockGraph.EXPECT().Query(gomock.Any(), gomock.Eq(query), gomock.Any()).Return(nil, mockError)
-
-	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"query": query,
-			},
-		},
-	}
-
-	// Call the handler
-	_, err := server.handleQueryTool(context.Background(), request)
-
-	// Assert the error
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "query failed")
+// Helper function to extract text from a CallToolResult
+func getResultText(result *mcp.CallToolResult) string {
+	contentVal := reflect.ValueOf(result.Content[0])
+	textField := contentVal.FieldByName("Text")
+	return textField.String()
 }
 
 // TestHandleCreateDocumentTool tests the create_document tool handler
@@ -127,8 +108,8 @@ func TestHandleCreateDocumentTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -153,14 +134,11 @@ func TestHandleCreateDocumentTool(t *testing.T) {
 	).Return("0x1", nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"title":    title,
-				"content":  content,
-				"metadata": metadata,
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"title":    title,
+		"content":  content,
+		"metadata": metadata,
 	}
 
 	// Call the handler
@@ -169,7 +147,10 @@ func TestHandleCreateDocumentTool(t *testing.T) {
 	// Assert the results
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, `{"id":"0x1"}`, result.Result.(string))
+
+	// Get the result text
+	resultText := getResultText(result)
+	assert.Equal(t, `{"id":"0x1"}`, resultText)
 }
 
 // TestHandleGetDocumentTool tests the get_document tool handler
@@ -179,8 +160,8 @@ func TestHandleGetDocumentTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -189,7 +170,7 @@ func TestHandleGetDocumentTool(t *testing.T) {
 	}
 
 	// Test document
-	document := &graph.Document{
+	document := &service.Document{
 		ID:      "0x1",
 		Title:   "Test Document",
 		Content: "This is a test document",
@@ -203,12 +184,9 @@ func TestHandleGetDocumentTool(t *testing.T) {
 	mockService.EXPECT().GetDocument(gomock.Any(), gomock.Eq("0x1")).Return(document, nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"id": "0x1",
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"id": "0x1",
 	}
 
 	// Call the handler
@@ -218,9 +196,12 @@ func TestHandleGetDocumentTool(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
+	// Get the result text
+	resultText := getResultText(result)
+
 	// Verify the result content
 	var resultDoc map[string]interface{}
-	err = json.Unmarshal([]byte(result.Result.(string)), &resultDoc)
+	err = json.Unmarshal([]byte(resultText), &resultDoc)
 	assert.NoError(t, err)
 	assert.Equal(t, "0x1", resultDoc["id"])
 	assert.Equal(t, "Test Document", resultDoc["title"])
@@ -235,8 +216,8 @@ func TestHandleSearchDocumentsTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -248,7 +229,7 @@ func TestHandleSearchDocumentsTool(t *testing.T) {
 	query := "test"
 
 	// Test search results
-	documents := []*graph.Document{
+	documents := []*service.Document{
 		{
 			ID:      "0x1",
 			Title:   "Test Document 1",
@@ -265,12 +246,9 @@ func TestHandleSearchDocumentsTool(t *testing.T) {
 	mockService.EXPECT().SearchDocuments(gomock.Any(), gomock.Eq(query)).Return(documents, nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"query": query,
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"query": query,
 	}
 
 	// Call the handler
@@ -280,9 +258,12 @@ func TestHandleSearchDocumentsTool(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
+	// Get the result text
+	resultText := getResultText(result)
+
 	// Verify the result content
 	var resultDocs []map[string]interface{}
-	err = json.Unmarshal([]byte(result.Result.(string)), &resultDocs)
+	err = json.Unmarshal([]byte(resultText), &resultDocs)
 	assert.NoError(t, err)
 	assert.Len(t, resultDocs, 2)
 	assert.Equal(t, "0x1", resultDocs[0]["id"])
@@ -298,8 +279,8 @@ func TestHandleCreateConceptTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -322,13 +303,10 @@ func TestHandleCreateConceptTool(t *testing.T) {
 	).Return("0x1", nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"name":       name,
-				"properties": properties,
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name":       name,
+		"properties": properties,
 	}
 
 	// Call the handler
@@ -337,7 +315,10 @@ func TestHandleCreateConceptTool(t *testing.T) {
 	// Assert the results
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, `{"id":"0x1"}`, result.Result.(string))
+
+	// Get the result text
+	resultText := getResultText(result)
+	assert.Equal(t, `{"id":"0x1"}`, resultText)
 }
 
 // TestHandleGetConceptTool tests the get_concept tool handler
@@ -347,8 +328,8 @@ func TestHandleGetConceptTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -357,7 +338,7 @@ func TestHandleGetConceptTool(t *testing.T) {
 	}
 
 	// Test concept
-	concept := &graph.Concept{
+	concept := &service.Concept{
 		ID:   "0x1",
 		Name: "Test Concept",
 		Properties: map[string]interface{}{
@@ -370,12 +351,9 @@ func TestHandleGetConceptTool(t *testing.T) {
 	mockService.EXPECT().GetConcept(gomock.Any(), gomock.Eq("0x1")).Return(concept, nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"id": "0x1",
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"id": "0x1",
 	}
 
 	// Call the handler
@@ -385,9 +363,12 @@ func TestHandleGetConceptTool(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
+	// Get the result text
+	resultText := getResultText(result)
+
 	// Verify the result content
 	var resultConcept map[string]interface{}
-	err = json.Unmarshal([]byte(result.Result.(string)), &resultConcept)
+	err = json.Unmarshal([]byte(resultText), &resultConcept)
 	assert.NoError(t, err)
 	assert.Equal(t, "0x1", resultConcept["id"])
 	assert.Equal(t, "Test Concept", resultConcept["name"])
@@ -402,8 +383,8 @@ func TestHandleLinkConceptsTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -430,15 +411,12 @@ func TestHandleLinkConceptsTool(t *testing.T) {
 	).Return("0x3", nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"fromId":           fromID,
-				"toId":             toID,
-				"relationshipType": relationType,
-				"properties":       properties,
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"fromId":           fromID,
+		"toId":             toID,
+		"relationshipType": relationType,
+		"properties":       properties,
 	}
 
 	// Call the handler
@@ -447,7 +425,10 @@ func TestHandleLinkConceptsTool(t *testing.T) {
 	// Assert the results
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, `{"id":"0x3"}`, result.Result.(string))
+
+	// Get the result text
+	resultText := getResultText(result)
+	assert.Equal(t, `{"id":"0x3"}`, resultText)
 }
 
 // TestHandleCreateNodeTool tests the create_node tool handler (legacy)
@@ -457,8 +438,8 @@ func TestHandleCreateNodeTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -481,13 +462,10 @@ func TestHandleCreateNodeTool(t *testing.T) {
 	).Return("0x1", nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"type":       nodeType,
-				"properties": properties,
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"type":       nodeType,
+		"properties": properties,
 	}
 
 	// Call the handler
@@ -496,7 +474,10 @@ func TestHandleCreateNodeTool(t *testing.T) {
 	// Assert the results
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, `{"id":"0x1"}`, result.Result.(string))
+
+	// Get the result text
+	resultText := getResultText(result)
+	assert.Equal(t, `{"id":"0x1"}`, resultText)
 }
 
 // TestHandleGetNodeTool tests the get_node tool handler (legacy)
@@ -506,8 +487,8 @@ func TestHandleGetNodeTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -527,12 +508,9 @@ func TestHandleGetNodeTool(t *testing.T) {
 	mockGraph.EXPECT().GetNode(gomock.Any(), gomock.Eq("0x1")).Return(node, nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"id": "0x1",
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"id": "0x1",
 	}
 
 	// Call the handler
@@ -542,9 +520,12 @@ func TestHandleGetNodeTool(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
+	// Get the result text
+	resultText := getResultText(result)
+
 	// Verify the result content
 	var resultNode map[string]interface{}
-	err = json.Unmarshal([]byte(result.Result.(string)), &resultNode)
+	err = json.Unmarshal([]byte(resultText), &resultNode)
 	assert.NoError(t, err)
 	assert.Equal(t, "0x1", resultNode["uid"])
 	assert.Equal(t, "Document", resultNode["type"])
@@ -559,8 +540,8 @@ func TestHandleCreateEdgeTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -586,15 +567,12 @@ func TestHandleCreateEdgeTool(t *testing.T) {
 	).Return("0x3", nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"fromId":     fromID,
-				"toId":       toID,
-				"type":       edgeType,
-				"properties": properties,
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"fromId":     fromID,
+		"toId":       toID,
+		"type":       edgeType,
+		"properties": properties,
 	}
 
 	// Call the handler
@@ -603,7 +581,10 @@ func TestHandleCreateEdgeTool(t *testing.T) {
 	// Assert the results
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, `{"id":"0x3"}`, result.Result.(string))
+
+	// Get the result text
+	resultText := getResultText(result)
+	assert.Equal(t, `{"id":"0x3"}`, resultText)
 }
 
 // TestHandleSchemaTool tests the upsert_schema tool handler
@@ -613,8 +594,8 @@ func TestHandleSchemaTool(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create mock graph store and service
-	mockGraph := graphmocks.NewMockStore(ctrl)
-	mockService := graphmocks.NewMockKnowledgeManager(ctrl)
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
 
 	// Create MCP server with mocks
 	server := &Server{
@@ -632,12 +613,9 @@ func TestHandleSchemaTool(t *testing.T) {
 	mockGraph.EXPECT().UpsertSchema(gomock.Any(), gomock.Eq(schema)).Return(nil)
 
 	// Create tool request
-	request := mcp.CallToolRequest{
-		Params: mcp.ToolParams{
-			Arguments: map[string]interface{}{
-				"schema": schema,
-			},
-		},
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"schema": schema,
 	}
 
 	// Call the handler
@@ -646,5 +624,311 @@ func TestHandleSchemaTool(t *testing.T) {
 	// Assert the results
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, `{"success":true}`, result.Result.(string))
+
+	// Get the result text
+	resultText := getResultText(result)
+	assert.Equal(t, `{"success":true}`, resultText)
+}
+
+// TestHandleCreateDocumentTool_Error tests the create_document tool handler with an error
+func TestHandleCreateDocumentTool_Error(t *testing.T) {
+	// Create a new mock controller
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
+
+	// Create MCP server with mocks
+	server := &Server{
+		graph:   mockGraph,
+		service: mockService,
+	}
+
+	// Test document data
+	title := "Test Document"
+	content := "This is a test document"
+	metadata := map[string]interface{}{
+		"author": "Test Author",
+		"tags":   []string{"test", "document"},
+	}
+
+	// Set up expectations with error
+	mockError := errors.New("failed to create document")
+	mockService.EXPECT().CreateDocument(
+		gomock.Any(),
+		gomock.Eq(title),
+		gomock.Eq(content),
+		gomock.Eq(metadata),
+	).Return("", mockError)
+
+	// Create tool request
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"title":    title,
+		"content":  content,
+		"metadata": metadata,
+	}
+
+	// Call the handler
+	_, err := server.handleCreateDocumentTool(context.Background(), request)
+
+	// Assert the error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create document")
+}
+
+// TestHandleGetDocumentTool_Error tests the get_document tool handler with an error
+func TestHandleGetDocumentTool_Error(t *testing.T) {
+	// Create a new mock controller
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
+
+	// Create MCP server with mocks
+	server := &Server{
+		graph:   mockGraph,
+		service: mockService,
+	}
+
+	// Set up expectations with error
+	mockError := errors.New("document not found")
+	mockService.EXPECT().GetDocument(gomock.Any(), gomock.Eq("0x1")).Return(nil, mockError)
+
+	// Create tool request
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"id": "0x1",
+	}
+
+	// Call the handler
+	_, err := server.handleGetDocumentTool(context.Background(), request)
+
+	// Assert the error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get document")
+}
+
+// TestHandleCreateConceptTool_Error tests the create_concept tool handler with an error
+func TestHandleCreateConceptTool_Error(t *testing.T) {
+	// Create a new mock controller
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
+
+	// Create MCP server with mocks
+	server := &Server{
+		graph:   mockGraph,
+		service: mockService,
+	}
+
+	// Test concept data
+	name := "Test Concept"
+	properties := map[string]interface{}{
+		"description": "A test concept",
+		"category":    "test",
+	}
+
+	// Set up expectations with error
+	mockError := errors.New("failed to create concept")
+	mockService.EXPECT().CreateConcept(
+		gomock.Any(),
+		gomock.Eq(name),
+		gomock.Eq(properties),
+	).Return("", mockError)
+
+	// Create tool request
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"name":       name,
+		"properties": properties,
+	}
+
+	// Call the handler
+	_, err := server.handleCreateConceptTool(context.Background(), request)
+
+	// Assert the error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create concept")
+}
+
+// TestHandleSchemaTool_Error tests the upsert_schema tool handler with an error
+func TestHandleSchemaTool_Error(t *testing.T) {
+	// Create a new mock controller
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
+
+	// Create MCP server with mocks
+	server := &Server{
+		graph:   mockGraph,
+		service: mockService,
+	}
+
+	// Test schema
+	schema := `
+		type: string @index(exact) .
+		title: string @index(fulltext, term) .
+	`
+
+	// Set up expectations with error
+	mockError := errors.New("failed to update schema")
+	mockGraph.EXPECT().UpsertSchema(gomock.Any(), gomock.Eq(schema)).Return(mockError)
+
+	// Create tool request
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"schema": schema,
+	}
+
+	// Call the handler
+	_, err := server.handleSchemaTool(context.Background(), request)
+
+	// Assert the error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update schema")
+}
+
+// TestHandleQueryTool_MissingQuery tests the query_knowledge_graph tool handler with a missing query parameter
+func TestHandleQueryTool_MissingQuery(t *testing.T) {
+	// Create a new mock controller
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
+
+	// Create MCP server with mocks
+	server := &Server{
+		graph:   mockGraph,
+		service: mockService,
+	}
+
+	// Create tool request with missing query
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"params": map[string]interface{}{
+			"limit": 10,
+		},
+	}
+
+	// Call the handler
+	_, err := server.handleQueryTool(context.Background(), request)
+
+	// Assert the error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "query must be a string")
+}
+
+// TestHandleCreateDocumentTool_MissingTitle tests the create_document tool handler with a missing title parameter
+func TestHandleCreateDocumentTool_MissingTitle(t *testing.T) {
+	// Create a new mock controller
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
+
+	// Create MCP server with mocks
+	server := &Server{
+		graph:   mockGraph,
+		service: mockService,
+	}
+
+	// Create tool request with missing title
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"content": "This is a test document",
+		"metadata": map[string]interface{}{
+			"author": "Test Author",
+		},
+	}
+
+	// Call the handler
+	_, err := server.handleCreateDocumentTool(context.Background(), request)
+
+	// Assert the error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "title must be a string")
+}
+
+// TestHandleCreateConceptTool_MissingName tests the create_concept tool handler with a missing name parameter
+func TestHandleCreateConceptTool_MissingName(t *testing.T) {
+	// Create a new mock controller
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
+
+	// Create MCP server with mocks
+	server := &Server{
+		graph:   mockGraph,
+		service: mockService,
+	}
+
+	// Create tool request with missing name
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"properties": map[string]interface{}{
+			"description": "A test concept",
+		},
+	}
+
+	// Call the handler
+	_, err := server.handleCreateConceptTool(context.Background(), request)
+
+	// Assert the error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "name must be a string")
+}
+
+// TestHandleQueryTool_Error tests the query_knowledge_graph tool handler with an error
+func TestHandleQueryTool_Error(t *testing.T) {
+	// Create a new mock controller
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// Create mock graph store and service
+	mockGraph := mocks.NewMockStore(ctrl)
+	mockService := mocks.NewMockKnowledgeManager(ctrl)
+
+	// Create MCP server with mocks
+	server := &Server{
+		graph:   mockGraph,
+		service: mockService,
+	}
+
+	// Test query
+	query := "{ documents(func: type(Document)) { uid title content } }"
+
+	// Set up expectations with error
+	mockError := errors.New("query failed")
+	mockGraph.EXPECT().Query(gomock.Any(), gomock.Eq(query), gomock.Any()).Return(nil, mockError)
+
+	// Create tool request
+	request := mcp.CallToolRequest{}
+	request.Params.Arguments = map[string]interface{}{
+		"query": query,
+	}
+
+	// Call the handler
+	_, err := server.handleQueryTool(context.Background(), request)
+
+	// Assert the error
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "query failed")
 }
