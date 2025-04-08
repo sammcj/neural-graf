@@ -1,10 +1,21 @@
-package dgraph
+package dgraphtest
 
 import (
 	"context"
 
 	"github.com/dgraph-io/dgo/v2/protos/api"
 )
+
+// DgraphClient defines the interface for the Dgraph client
+// This interface is used for mocking in tests
+type DgraphClient interface {
+	// NewTxn creates a new transaction
+	NewTxn() DgraphTxn
+	// NewReadOnlyTxn creates a new read-only transaction
+	NewReadOnlyTxn() DgraphTxn
+	// Alter runs schema operations
+	Alter(ctx context.Context, op *api.Operation) error
+}
 
 // DgraphTxn defines the interface for the Dgraph transaction
 // This interface is used for mocking in tests

@@ -5,20 +5,10 @@ import (
 
 	"github.com/dgraph-io/dgo/v2"
 	"github.com/dgraph-io/dgo/v2/protos/api"
+	"github.com/sammcj/mcp-graph/internal/graph/dgraph/dgraphtest"
 )
 
-// DgraphClient defines the interface for the Dgraph client
-// This interface is used for mocking in tests
-type DgraphClient interface {
-	// NewTxn creates a new transaction
-	NewTxn() DgraphTxn
-	// NewReadOnlyTxn creates a new read-only transaction
-	NewReadOnlyTxn() DgraphTxn
-	// Alter runs schema operations
-	Alter(ctx context.Context, op *api.Operation) error
-}
-
-// DgraphClientWrapper wraps the Dgraph client to implement the DgraphClient interface
+// DgraphClientWrapper wraps the Dgraph client to implement the dgraphtest.DgraphClient interface
 type DgraphClientWrapper struct {
 	client *dgo.Dgraph
 }
@@ -30,7 +20,7 @@ func NewDgraphClientWrapper(client *dgo.Dgraph) *DgraphClientWrapper {
 	}
 }
 
-// DgraphTxnWrapper wraps the Dgraph transaction to implement the DgraphTxn interface
+// DgraphTxnWrapper wraps the Dgraph transaction to implement the dgraphtest.DgraphTxn interface
 type DgraphTxnWrapper struct {
 	txn *dgo.Txn
 }
@@ -61,14 +51,14 @@ func (w *DgraphTxnWrapper) Commit(ctx context.Context) error {
 }
 
 // NewTxn creates a new transaction
-func (w *DgraphClientWrapper) NewTxn() DgraphTxn {
+func (w *DgraphClientWrapper) NewTxn() dgraphtest.DgraphTxn {
 	return &DgraphTxnWrapper{
 		txn: w.client.NewTxn(),
 	}
 }
 
 // NewReadOnlyTxn creates a new read-only transaction
-func (w *DgraphClientWrapper) NewReadOnlyTxn() DgraphTxn {
+func (w *DgraphClientWrapper) NewReadOnlyTxn() dgraphtest.DgraphTxn {
 	return &DgraphTxnWrapper{
 		txn: w.client.NewReadOnlyTxn(),
 	}

@@ -11,11 +11,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/sammcj/mcp-graph/internal/graph"
+	"github.com/sammcj/mcp-graph/internal/graph/dgraph/dgraphtest"
 )
 
 // DgraphStore implements the graph.Store interface using Dgraph
 type DgraphStore struct {
-	client DgraphClient
+	client dgraphtest.DgraphClient
 }
 
 // Ensure DgraphStore implements graph.Store
@@ -40,7 +41,7 @@ func NewDgraphStore(address string) (*DgraphStore, error) {
 
 // NewDgraphStoreWithClient creates a new Dgraph store with a provided client
 // This is useful for testing with a mock client
-func NewDgraphStoreWithClient(client DgraphClient) *DgraphStore {
+func NewDgraphStoreWithClient(client dgraphtest.DgraphClient) *DgraphStore {
 	return &DgraphStore{
 		client: client,
 	}

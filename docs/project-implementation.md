@@ -31,7 +31,7 @@ This document outlines the phased implementation plan for the mcp-graph project.
   - [x] Create schema management functionality
   - [x] Implement query functionality
   - [x] Add transaction support
-  - [ ] Write unit tests for Dgraph implementation
+  - [x] Write unit tests for Dgraph implementation
 
 - [x] **Docker Integration**
   - [x] Create Dockerfile for the application
@@ -141,8 +141,8 @@ The next phase of development should focus on:
    - Adding authentication and authorization
 
 2. **Testing**
-   - Writing unit tests for the Dgraph implementation
    - Writing unit tests for the service layer
+   - Writing unit tests for MCP tools
    - Adding integration tests for the MCP server
 
 3. **Future Enhancements**
@@ -152,7 +152,7 @@ The next phase of development should focus on:
 
 ### Recent Progress (April 8, 2025)
 
-We have completed Phase 4 of the implementation plan, focusing on the service layer and API implementation:
+We have completed Phase 4 of the implementation plan, focusing on the service layer and API implementation, and made progress on testing:
 
 1. **Knowledge Manager Service**
    - Created a service interface with high-level operations for managing the knowledge graph
@@ -181,6 +181,14 @@ We have completed Phase 4 of the implementation plan, focusing on the service la
      - **Service Layer**: Provides high-level business logic and domain operations
      - **MCP Server**: Exposes the knowledge graph via the Model Context Protocol
      - **API Server**: Provides a RESTful API for non-MCP clients
+
+5. **Testing Progress**
+   - Implemented comprehensive unit tests for the Dgraph implementation:
+     - Created interface abstractions for Dgraph client and transactions
+     - Generated mocks using mockgen for testing
+     - Added tests for all core graph operations (create, get, update, delete)
+     - Included tests for edge operations and query functionality
+     - Added both success and error test cases
 
 ### Running the Application
 
