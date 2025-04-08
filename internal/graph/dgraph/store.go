@@ -15,7 +15,7 @@ import (
 
 // DgraphStore implements the graph.Store interface using Dgraph
 type DgraphStore struct {
-	client *dgo.Dgraph
+	client DgraphClient
 }
 
 // Ensure DgraphStore implements graph.Store
@@ -30,11 +30,20 @@ func NewDgraphStore(address string) (*DgraphStore, error) {
 	}
 
 	// Create a Dgraph client
-	client := dgo.NewDgraphClient(api.NewDgraphClient(conn))
+	dgraphClient := dgo.NewDgraphClient(api.NewDgraphClient(conn))
+	client := NewDgraphClientWrapper(dgraphClient)
 
 	return &DgraphStore{
 		client: client,
 	}, nil
+}
+
+// NewDgraphStoreWithClient creates a new Dgraph store with a provided client
+// This is useful for testing with a mock client
+func NewDgraphStoreWithClient(client DgraphClient) *DgraphStore {
+	return &DgraphStore{
+		client: client,
+	}
 }
 
 // CreateNode creates a new node in the graph
