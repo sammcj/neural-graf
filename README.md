@@ -21,7 +21,7 @@ MCP-Graph is a modular knowledge graph system that provides efficient data inges
 
 The system follows a clean, modular design with the following components:
 
-```
+```tree
 mcp-graph/
 ├── cmd/
 │   └── server/                 # Main application entry point
@@ -48,20 +48,22 @@ mcp-graph/
 ### Installation
 
 1. Clone the repository:
-   ```
+   ```bash
    git clone https://github.com/sammcj/mcp-graph.git
    cd mcp-graph
    ```
 
 2. Build the application:
-   ```
+   ```bash
    go build -o bin/mcp-graph ./cmd/server
    ```
 
 3. Run with Docker Compose (includes Dgraph):
-   ```
+   ```bash
    docker-compose up -d
    ```
+
+   Alternatively, for macOS users with Colima who experience issues with Docker Compose, see [Running Without Docker Compose](docs/running_without_docker_compose.md).
 
 ## Configuration
 
