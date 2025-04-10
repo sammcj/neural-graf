@@ -76,6 +76,14 @@ This document summarises the research, goals, and planning for extending the `mc
         *   `CONFIGURED_BY`: (No specific properties usually).
         *   `PART_OF`: (No specific properties usually).
     *   **Note on File Imports:** We will rely on semantic relationships (`CALLS`, `IMPLEMENTS`, `DEPENDS_ON` between code constructs) rather than explicit `File IMPORTS File` relationships for code, as the former provides more architectural meaning. Specific `INCLUDES` relationships might be used for non-code files (e.g., HTML including CSS).
+    *   **Identifying Properties for `find_or_create_entity`:** The `identifying_properties` input for this tool relies on unique keys for different entity types. Examples include:
+        *   `Repository`: `{ "url": "..." }`
+        *   `Module`: `{ "filePath": "..." }` (Path to definition file like go.mod, pom.xml)
+        *   `File`, `ConfigurationFile`: `{ "filePath": "..." }` (Relative path from repo root)
+        *   `Function`, `Class`, `Interface`: `{ "name": "...", "filePath": "..." }` (Or potentially `{ "signature": "..." }` for functions if names aren't unique within a file)
+        *   `Library`: `{ "name": "...", "version": "..." }` or `{ "groupId": "...", "artifactId": "...", "version": "..." }`
+        *   `DataStore`: `{ "type": "...", "location": "..." }`
+        *   `Service`, `Component`, `Application`: Often identified by `{ "name": "..." }` within a certain scope (e.g., unique within a repository or globally). Requires careful definition based on project context.
 *   **MCP Primitives:**
     *   **Tools:** This is the primary mechanism for interaction. Specialised, model-controlled tools should be created. Key tools include:
         *   `find_or_create_entity`: Idempotently finds or creates nodes, updating properties on match. Essential for preventing duplicates and handling updates. Requires defining unique identifying properties for different entity types.
@@ -122,8 +130,8 @@ This document summarises the research, goals, and planning for extending the `mc
 ## 5. Implementation Plan & Next Steps
 
 1.  **Phase 1 (Core Functionality - Agent-Driven):**
-    *   Implement the defined Neo4j schema (node labels, properties, relationship types).
-    *   Create required Neo4j indexes for performance.
+    *   Implement the defined Neo4j schema (node labels, properties, relationship types). This might initially involve manual Cypher scripts or potentially integrating schema setup into the server's startup sequence.
+    *   Create required Neo4j indexes for performance (e.g., on identifying properties). Document the specific `CREATE INDEX` commands needed.
     *   Implement the prioritised MCP Tools using `mcp-go`:
         *   `find_or_create_entity` (handling updates)
         *   `find_or_create_relationship` (handling updates)
@@ -131,7 +139,8 @@ This document summarises the research, goals, and planning for extending the `mc
         *   `find_neighbors`
     *   Ensure high-quality tool descriptions and input schemas.
     *   Implement robust error handling within tools.
-    *   Document the expected agent-driven workflow and the stale-marking strategy.
+    *   Document the expected agent-driven workflow.
+    *   Implement a basic stale-marking mechanism. For Phase 1, this could involve the agent querying for potentially stale nodes within the analysed scope (based on `filePath` and `lastModifiedAt`) and then calling `find_or_create_entity` again for those nodes, specifically setting the `status` property to 'stale' or 'deprecated' in the `update_properties`. A dedicated server-side tool is a Phase 2 refinement.
 2.  **Phase 2 (Enhancements):**
     *   Implement more advanced query tools (`find_dependencies`, `find_dependents`).
     *   Implement a visualisation helper tool (`get_entity_subgraph`) that returns structured node/relationship data for a given entity and depth, enabling agents to generate diagrams (e.g., Mermaid).
