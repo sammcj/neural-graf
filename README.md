@@ -62,12 +62,6 @@ mcp-graph/
    ```bash
    docker-compose up -d
    ```
-
-   Alternatively, for users who want to run Memgraph directly on their machine:
-   ```bash
-   ./scripts/run_with_local_memgraph.sh
-   ```
-
 ## Configuration
 
 Configuration can be provided via a YAML file or environment variables. See `.env.example` and `config.yaml.example` for available options.

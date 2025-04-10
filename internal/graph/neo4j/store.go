@@ -50,7 +50,7 @@ func (s *Neo4jStore) CreateNode(ctx context.Context, nodeType string, properties
 	}
 
 	// Create Cypher query
-	query := fmt.Sprintf("CREATE (n:%s $props) RETURN id(n) as id", nodeType)
+	query := fmt.Sprintf("CREATE (n:%s $props) RETURN n", nodeType)
 	params := map[string]interface{}{
 		"props": properties,
 	}
@@ -61,25 +61,30 @@ func (s *Neo4jStore) CreateNode(ctx context.Context, nodeType string, properties
 		return "", fmt.Errorf("failed to create node: %w", err)
 	}
 
-	// Extract node ID
+	// Extract node
 	if len(result.Records) == 0 {
-		return "", fmt.Errorf("no ID returned from node creation")
+		return "", fmt.Errorf("no node returned from node creation")
 	}
 
-	id, ok := result.Records[0].Get("id")
+	nodeVal, ok := result.Records[0].Get("n")
 	if !ok {
-		return "", fmt.Errorf("no ID returned from node creation")
+		return "", fmt.Errorf("no node returned from node creation")
 	}
 
-	// Convert ID to string
-	idStr := fmt.Sprintf("%v", id)
-	return idStr, nil
+	// Convert node to Neo4j node
+	node, ok := nodeVal.(neo4j.Node)
+	if !ok {
+		return "", fmt.Errorf("failed to convert result to node")
+	}
+
+	// Return the element ID which is more reliable for retrieval
+	return node.ElementId, nil
 }
 
 // GetNode retrieves a node by ID
 func (s *Neo4jStore) GetNode(ctx context.Context, id string) (map[string]interface{}, error) {
-	// Create Cypher query
-	query := "MATCH (n) WHERE id(n) = $id RETURN n"
+	// Create Cypher query - use elementId for more reliable retrieval
+	query := "MATCH (n) WHERE elementId(n) = $id RETURN n"
 	params := map[string]interface{}{
 		"id": id,
 	}
@@ -109,7 +114,7 @@ func (s *Neo4jStore) GetNode(ctx context.Context, id string) (map[string]interfa
 
 	// Convert properties to map
 	props := node.Props
-	props["id"] = id
+	props["id"] = node.ElementId
 	props["labels"] = node.Labels
 
 	return props, nil
@@ -117,8 +122,8 @@ func (s *Neo4jStore) GetNode(ctx context.Context, id string) (map[string]interfa
 
 // UpdateNode updates a node's properties
 func (s *Neo4jStore) UpdateNode(ctx context.Context, id string, properties map[string]interface{}) error {
-	// Create Cypher query
-	query := "MATCH (n) WHERE id(n) = $id SET n += $props"
+	// Create Cypher query - use elementId for more reliable retrieval
+	query := "MATCH (n) WHERE elementId(n) = $id SET n += $props"
 	params := map[string]interface{}{
 		"id":    id,
 		"props": properties,
@@ -135,8 +140,8 @@ func (s *Neo4jStore) UpdateNode(ctx context.Context, id string, properties map[s
 
 // DeleteNode deletes a node by ID
 func (s *Neo4jStore) DeleteNode(ctx context.Context, id string) error {
-	// Create Cypher query
-	query := "MATCH (n) WHERE id(n) = $id DETACH DELETE n"
+	// Create Cypher query - use elementId for more reliable retrieval
+	query := "MATCH (n) WHERE elementId(n) = $id DETACH DELETE n"
 	params := map[string]interface{}{
 		"id": id,
 	}
@@ -152,8 +157,8 @@ func (s *Neo4jStore) DeleteNode(ctx context.Context, id string) error {
 
 // CreateEdge creates a new edge between two nodes
 func (s *Neo4jStore) CreateEdge(ctx context.Context, fromID, toID, relationshipType string, properties map[string]interface{}) (string, error) {
-	// Create Cypher query
-	query := "MATCH (a), (b) WHERE id(a) = $fromID AND id(b) = $toID CREATE (a)-[r:" + relationshipType + " $props]->(b) RETURN id(r) as id"
+	// Create Cypher query - use elementId for more reliable node lookup
+	query := "MATCH (a), (b) WHERE elementId(a) = $fromID AND elementId(b) = $toID CREATE (a)-[r:" + relationshipType + " $props]->(b) RETURN r"
 	params := map[string]interface{}{
 		"fromID": fromID,
 		"toID":   toID,
@@ -166,25 +171,30 @@ func (s *Neo4jStore) CreateEdge(ctx context.Context, fromID, toID, relationshipT
 		return "", fmt.Errorf("failed to create edge: %w", err)
 	}
 
-	// Extract edge ID
+	// Extract relationship
 	if len(result.Records) == 0 {
-		return "", fmt.Errorf("no ID returned from edge creation")
+		return "", fmt.Errorf("no relationship returned from edge creation")
 	}
 
-	id, ok := result.Records[0].Get("id")
+	relVal, ok := result.Records[0].Get("r")
 	if !ok {
-		return "", fmt.Errorf("no ID returned from edge creation")
+		return "", fmt.Errorf("no relationship returned from edge creation")
 	}
 
-	// Convert ID to string
-	idStr := fmt.Sprintf("%v", id)
-	return idStr, nil
+	// Convert to Neo4j relationship
+	rel, ok := relVal.(neo4j.Relationship)
+	if !ok {
+		return "", fmt.Errorf("failed to convert result to relationship")
+	}
+
+	// Return the element ID which is more reliable for retrieval
+	return rel.ElementId, nil
 }
 
 // GetEdge retrieves an edge by ID
 func (s *Neo4jStore) GetEdge(ctx context.Context, id string) (map[string]interface{}, error) {
-	// Create Cypher query
-	query := "MATCH ()-[r]->() WHERE id(r) = $id RETURN r, startNode(r) as from, endNode(r) as to, type(r) as type"
+	// Create Cypher query - use elementId for more reliable retrieval
+	query := "MATCH ()-[r]->() WHERE elementId(r) = $id RETURN r, startNode(r) as from, endNode(r) as to, type(r) as type"
 	params := map[string]interface{}{
 		"id": id,
 	}
@@ -240,9 +250,9 @@ func (s *Neo4jStore) GetEdge(ctx context.Context, id string) (map[string]interfa
 
 	// Convert properties to map
 	props := edge.Props
-	props["id"] = id
-	props["fromId"] = fmt.Sprintf("%v", fromNode.ElementId)
-	props["toId"] = fmt.Sprintf("%v", toNode.ElementId)
+	props["id"] = edge.ElementId
+	props["fromId"] = fromNode.ElementId
+	props["toId"] = toNode.ElementId
 	props["type"] = relType
 
 	return props, nil
@@ -250,8 +260,8 @@ func (s *Neo4jStore) GetEdge(ctx context.Context, id string) (map[string]interfa
 
 // UpdateEdge updates an edge's properties
 func (s *Neo4jStore) UpdateEdge(ctx context.Context, id string, properties map[string]interface{}) error {
-	// Create Cypher query
-	query := "MATCH ()-[r]->() WHERE id(r) = $id SET r += $props"
+	// Create Cypher query - use elementId for more reliable retrieval
+	query := "MATCH ()-[r]->() WHERE elementId(r) = $id SET r += $props"
 	params := map[string]interface{}{
 		"id":    id,
 		"props": properties,
@@ -268,8 +278,8 @@ func (s *Neo4jStore) UpdateEdge(ctx context.Context, id string, properties map[s
 
 // DeleteEdge deletes an edge by ID
 func (s *Neo4jStore) DeleteEdge(ctx context.Context, id string) error {
-	// Create Cypher query
-	query := "MATCH ()-[r]->() WHERE id(r) = $id DELETE r"
+	// Create Cypher query - use elementId for more reliable retrieval
+	query := "MATCH ()-[r]->() WHERE elementId(r) = $id DELETE r"
 	params := map[string]interface{}{
 		"id": id,
 	}
