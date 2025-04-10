@@ -27,10 +27,11 @@ This document summarises the research, goals, and planning for extending the `mc
 
 *   **Language Support:** The system needs to model constructs from various languages (Go, Java, C/C++, Python, JS/TS, Swift, etc.) in a consistent way. The schema should be language-agnostic, relying on properties like `language`.
 *   **Granularity:** Finding the right level of detail (e.g., Module, Component, Service, Class, Function) is crucial. Starting with Function-level seems appropriate, potentially adding `Application` later. Method-level might be too granular initially.
-*   **Handling Unknowns/Uncertainty:** The graph must represent incomplete knowledge. This can be achieved through:
-    *   `confidence` property on relationships.
-    *   `status` property on nodes (e.g., 'stub', 'partially_analysed').
-    *   `source` property indicating how information was derived ('manual', 'static-analysis', 'agent-inference').
+    *   **Handling Unknowns/Uncertainty:** The graph must represent incomplete knowledge. This can be achieved through:
+        *   `confidence` property on relationships/nodes.
+        *   `status` property on nodes (e.g., 'stub', 'partially_analysed').
+        *   `source` property indicating how information was derived ('manual', 'static-analysis', 'agent-inference').
+        *   **Future Consideration:** Develop strategies for resolving conflicting property values when data comes from multiple sources with varying reliability (e.g., based on source precedence or confidence scores).
 *   **Metadata for Specific Use Cases:** Supporting tags (e.g., `refactor-candidate`, `legacy-code`, `technical-debt`) is important for tasks like software rewrites.
 *   **Discovery Mechanisms:** Agents need ways to populate the graph. This involves:
     *   Using standard agent tools (`read_file`, `search_files`, `execute_command`).
@@ -82,7 +83,7 @@ This document summarises the research, goals, and planning for extending the `mc
         *   Basic Querying: Tools like `get_entity_details` and `find_neighbors` for exploration.
         *   Future Tools: More advanced queries like `find_dependencies`, `find_dependents`, `visualise_component`.
         These tools need clear input schemas (using `mcp-go` helpers) and return structured results or errors appropriately (`isError: true`).
-    *   **Tool Discovery & Usage:** Agents learn how to use these tools via the standard MCP `tools/list` mechanism. The server provides the tool `name`, `description`, and `inputSchema`. **Crucially, the quality and clarity of the tool and parameter descriptions are paramount** for enabling the agent to understand when and how to use the tools effectively.
+    *   **Tool Discovery & Usage:** Agents learn how to use these tools via the standard MCP `tools/list` mechanism. The server provides the tool `name`, `description`, and `inputSchema`. **Crucially, the quality and clarity of the tool and parameter descriptions are paramount** for enabling the agent to understand when and how to use the tools effectively. Descriptions should ideally include concrete usage examples where possible.
     *   **Resources:** Can be used optionally to expose specific graph views or reports for user-controlled context (e.g., a diagram for a specific service).
     *   **Prompts:** Can be used optionally to define user-initiated analysis workflows (e.g., `/summarise_component`).
     *   **Sampling:** A potential future enhancement for server-side LLM analysis, but likely deferred due to current client/library support.
@@ -96,6 +97,7 @@ This document summarises the research, goals, and planning for extending the `mc
     5.  **Stale Marking:** Agent applies the stale marking strategy after processing a scope.
     6.  **Iteration:** Agent moves to the next scope.
     This relies on the agent's parsing capabilities and its understanding of the tools via their descriptions.
+*   **Concurrency Considerations:** While Neo4j's `MERGE` provides atomicity for individual operations, high-concurrency updates from multiple agents analysing overlapping scopes might require future investigation into more sophisticated locking or conflict resolution strategies if simple timestamp-based overwrites prove insufficient. For Phase 1, the basic `MERGE` approach is expected to be adequate.
 *   **Server-Side Analysis (Future Enhancement):**
     *   An alternative approach involves the `mcp-graph` server performing the analysis directly. This would require a tool like `analyse_codebase(path, options)` and direct filesystem access for the server.
     *   **Pros:** Potentially more efficient for bulk ingestion by avoiding numerous MCP calls. Centralises parsing logic.
@@ -110,10 +112,12 @@ This document summarises the research, goals, and planning for extending the `mc
     *   After analysing a scope (e.g., a file), querying for entities expected within that scope.
     *   Marking entities found in the graph but *not* in the current analysis as 'stale' or 'deprecated' using their `status` property.
 *   **Performance & Scalability:**
-    *   **Indexing:** Indexes *must* be created in Neo4j on properties used for matching in `find_or_create_entity/relationship` (e.g., `:Function(name, filePath)`, `:Repository(url)`) to ensure `MERGE` performance. Document required indexes.
-    *   **Query Optimisation:** Ensure Cypher queries used within tool handlers are efficient and parameterised.
-    *   **Batching:** Consider if future tools for batch creation/linking might be beneficial, although the `find_or_create_...` pattern handles idempotency well for individual items.
+    *   **Indexing:** Indexes *must* be created in Neo4j on properties used for matching in `find_or_create_entity/relationship` (e.g., `:Function(name, filePath)`, `:Repository(url)`) to ensure `MERGE` performance. Consider compound indexes for frequently co-queried properties (e.g., label + name + filePath). Document required indexes clearly.
+    *   **Query Optimisation:** Ensure Cypher queries used within tool handlers are efficient and parameterised. Be mindful of potential performance issues with deep graph traversals (e.g., transitive dependencies) and test with realistic data sizes early.
+    *   **Transaction Management:** Tool handlers must ensure graph operations (especially `MERGE` in `find_or_create_...` tools) occur within proper database transactions managed by the `graph.Store` implementation to maintain data integrity.
+    *   **Batching (Future Enhancement):** Consider adding tools for batch creation/linking in Phase 2 for improved efficiency, particularly relevant if implementing server-side analysis.
 *   **Schema Evolution:** Plan for how schema changes will be managed over time (e.g., manual updates initially, potential future migration tooling).
+*   **Graph Complexity Management (Future Consideration):** As the graph grows, consider strategies like logical partitioning (e.g., by application), context-scoped queries, and advanced pruning/archiving for stale/deprecated elements.
 
 ## 5. Implementation Plan & Next Steps
 
@@ -130,9 +134,13 @@ This document summarises the research, goals, and planning for extending the `mc
     *   Document the expected agent-driven workflow and the stale-marking strategy.
 2.  **Phase 2 (Enhancements):**
     *   Implement more advanced query tools (`find_dependencies`, `visualise_component`).
+    *   Implement MCP Prompts for common query/analysis patterns (Query Templates).
     *   Optionally implement server-side analysis (`analyse_codebase`) if needed for bulk ingestion performance, addressing multi-language parsing challenges.
-    *   Optionally implement MCP Resources or Prompts for user-controlled interactions.
-    *   Refine stale data handling (e.g., dedicated tool).
+    *   Optionally implement MCP Resources for user-controlled views/reports.
+    *   Refine stale data handling (e.g., dedicated tool, advanced pruning).
+    *   Extend schema to include additional elements (e.g., Events, API Contracts, IaC).
+    *   Investigate advanced concurrency control if needed.
+    *   Implement batch operations.
 
 **Next Step:** Transition to ACT MODE to begin Phase 1 implementation.
 
