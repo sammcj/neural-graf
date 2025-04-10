@@ -28,7 +28,7 @@ check_dgraph_running() {
     print_info "Checking if DGraph is running..."
 
     # Check if DGraph Alpha is accessible
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health > /dev/null 2>&1; then
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health >/dev/null 2>&1; then
         print_info "DGraph Alpha is running and accessible."
         return 0
     else
@@ -47,30 +47,9 @@ main() {
 
     # Check if DGraph is running, start it if not
     if ! check_dgraph_running; then
-        ./scripts/run_dgraph_locally.sh start
-
-        # Wait for DGraph to fully start
-        print_info "Waiting for DGraph to fully start..."
-        sleep 15
-
-        # Check if DGraph Alpha is accessible
-        print_info "Checking if DGraph Alpha is accessible..."
-        MAX_RETRIES=5
-        RETRY_COUNT=0
-        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health | grep -q "200"; then
-                print_info "DGraph Alpha is accessible"
-                break
-            else
-                RETRY_COUNT=$((RETRY_COUNT+1))
-                if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-                    print_warning "DGraph Alpha is not responding. Continuing anyway..."
-                else
-                    print_info "Waiting for DGraph Alpha to become accessible (attempt $RETRY_COUNT/$MAX_RETRIES)..."
-                    sleep 2
-                fi
-            fi
-        done
+        # Use the fix script to ensure proper DGraph setup
+        print_info "Using fix script to ensure proper DGraph setup..."
+        ./scripts/fix_dgraph_setup.sh
     fi
 
     # Set environment variables for MCP-Graph

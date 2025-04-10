@@ -25,7 +25,7 @@ print_error() {
 
 # Check if DGraph is installed
 check_dgraph_installed() {
-    if ! command -v dgraph &> /dev/null; then
+    if ! command -v dgraph &>/dev/null; then
         print_error "DGraph is not installed. Please install it first."
         echo "You can install DGraph using the following command:"
         echo "curl -s https://get.dgraph.io | bash"
@@ -36,10 +36,10 @@ check_dgraph_installed() {
 # Check if a port is in use
 check_port_in_use() {
     local port=$1
-    if lsof -i :$port -sTCP:LISTEN -t >/dev/null ; then
-        return 0  # Port is in use
+    if lsof -i :$port -sTCP:LISTEN -t >/dev/null; then
+        return 0 # Port is in use
     else
-        return 1  # Port is free
+        return 1 # Port is free
     fi
 }
 
@@ -81,14 +81,14 @@ create_directories() {
 # Start DGraph Zero
 start_dgraph_zero() {
     print_info "Starting DGraph Zero..."
-    dgraph zero --my=localhost:5080 --wal=dgraph_data/zero/wal &
+    dgraph zero --my=localhost:5080 --wal=dgraph_data/zero/wal --bindall=true &
     ZERO_PID=$!
     echo $ZERO_PID >dgraph_data/zero.pid
     print_info "DGraph Zero started with PID: $ZERO_PID"
 
     # Wait for Zero to start and initialize
     print_info "Waiting for DGraph Zero to initialize..."
-    sleep 10
+    sleep 15
 
     # Check if Zero is running
     if ! ps -p $ZERO_PID >/dev/null; then
@@ -102,17 +102,17 @@ start_dgraph_zero() {
 # Start DGraph Alpha
 start_dgraph_alpha() {
     print_info "Starting DGraph Alpha..."
-    dgraph alpha --my=localhost:7080 --zero=localhost:5080 --postings=dgraph_data/alpha/p --wal=dgraph_data/alpha/wal --security whitelist=0.0.0.0/0 &
+    dgraph alpha --my=localhost:7080 --zero=localhost:5080 --postings=dgraph_data/alpha/p --wal=dgraph_data/alpha/wal --security whitelist=0.0.0.0/0 --bindall=true &
     ALPHA_PID=$!
-    echo $ALPHA_PID > dgraph_data/alpha.pid
+    echo $ALPHA_PID >dgraph_data/alpha.pid
     print_info "DGraph Alpha started with PID: $ALPHA_PID"
 
     # Wait for Alpha to start and initialize
     print_info "Waiting for DGraph Alpha to initialize..."
-    sleep 10
+    sleep 20
 
     # Check if Alpha is running
-    if ! ps -p $ALPHA_PID > /dev/null; then
+    if ! ps -p $ALPHA_PID >/dev/null; then
         print_error "DGraph Alpha failed to start. Check the logs for errors."
         exit 1
     fi
@@ -126,7 +126,7 @@ start_dgraph_alpha() {
             print_info "DGraph Alpha is accessible"
             break
         else
-            RETRY_COUNT=$((RETRY_COUNT+1))
+            RETRY_COUNT=$((RETRY_COUNT + 1))
             if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
                 print_warning "DGraph Alpha is not responding, but process is running. Continuing anyway..."
             else
@@ -140,10 +140,10 @@ start_dgraph_alpha() {
 # Start DGraph Ratel (UI)
 start_dgraph_ratel() {
     print_info "Starting DGraph Ratel (UI)..."
-    if command -v dgraph-ratel &> /dev/null; then
+    if command -v dgraph-ratel &>/dev/null; then
         dgraph-ratel &
         RATEL_PID=$!
-        echo $RATEL_PID > dgraph_data/ratel.pid
+        echo $RATEL_PID >dgraph_data/ratel.pid
         print_info "DGraph Ratel started with PID: $RATEL_PID"
     else
         print_warning "DGraph Ratel not found. Skipping Ratel UI startup."
@@ -157,7 +157,7 @@ stop_dgraph() {
 
     if [ -f dgraph_data/zero.pid ]; then
         ZERO_PID=$(cat dgraph_data/zero.pid)
-        if ps -p $ZERO_PID > /dev/null; then
+        if ps -p $ZERO_PID >/dev/null; then
             kill $ZERO_PID
             print_info "DGraph Zero stopped"
         else
@@ -168,7 +168,7 @@ stop_dgraph() {
 
     if [ -f dgraph_data/alpha.pid ]; then
         ALPHA_PID=$(cat dgraph_data/alpha.pid)
-        if ps -p $ALPHA_PID > /dev/null; then
+        if ps -p $ALPHA_PID >/dev/null; then
             kill $ALPHA_PID
             print_info "DGraph Alpha stopped"
         else
@@ -179,7 +179,7 @@ stop_dgraph() {
 
     if [ -f dgraph_data/ratel.pid ]; then
         RATEL_PID=$(cat dgraph_data/ratel.pid)
-        if ps -p $RATEL_PID > /dev/null; then
+        if ps -p $RATEL_PID >/dev/null; then
             kill $RATEL_PID
             print_info "DGraph Ratel stopped"
         else
@@ -195,7 +195,7 @@ show_status() {
 
     if [ -f dgraph_data/zero.pid ]; then
         ZERO_PID=$(cat dgraph_data/zero.pid)
-        if ps -p $ZERO_PID > /dev/null; then
+        if ps -p $ZERO_PID >/dev/null; then
             print_info "DGraph Zero is running with PID: $ZERO_PID"
         else
             print_warning "DGraph Zero is not running (stale PID file)"
@@ -206,7 +206,7 @@ show_status() {
 
     if [ -f dgraph_data/alpha.pid ]; then
         ALPHA_PID=$(cat dgraph_data/alpha.pid)
-        if ps -p $ALPHA_PID > /dev/null; then
+        if ps -p $ALPHA_PID >/dev/null; then
             print_info "DGraph Alpha is running with PID: $ALPHA_PID"
         else
             print_warning "DGraph Alpha is not running (stale PID file)"
@@ -217,7 +217,7 @@ show_status() {
 
     if [ -f dgraph_data/ratel.pid ]; then
         RATEL_PID=$(cat dgraph_data/ratel.pid)
-        if ps -p $RATEL_PID > /dev/null; then
+        if ps -p $RATEL_PID >/dev/null; then
             print_info "DGraph Ratel is running with PID: $RATEL_PID"
         else
             print_warning "DGraph Ratel is not running (stale PID file)"
@@ -234,18 +234,18 @@ show_status() {
 # Main function
 main() {
     case "$1" in
-        start)
-            check_dgraph_installed
-            check_dgraph_ports
-            create_directories
-            start_dgraph_zero
-            start_dgraph_alpha
-            start_dgraph_ratel
-            show_status
-            ;;
-        stop)
-            stop_dgraph
-            ;;
+    start)
+        check_dgraph_installed
+        check_dgraph_ports
+        create_directories
+        start_dgraph_zero
+        start_dgraph_alpha
+        start_dgraph_ratel
+        show_status
+        ;;
+    stop)
+        stop_dgraph
+        ;;
     restart)
         stop_dgraph
         sleep 2
@@ -257,13 +257,13 @@ main() {
         start_dgraph_ratel
         show_status
         ;;
-        status)
-            show_status
-            ;;
-        *)
-            echo "Usage: $0 {start|stop|restart|status}"
-            exit 1
-            ;;
+    status)
+        show_status
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
     esac
 }
 
