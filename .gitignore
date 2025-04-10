@@ -39,4 +39,4 @@ bin/
 
 **/dgraph_data
 t
-config.yaml
+**/config.yaml
