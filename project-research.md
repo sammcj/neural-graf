@@ -87,6 +87,7 @@ This document summarises the research, goals, and planning for extending the `mc
     *   **Prompts:** Can be used optionally to define user-initiated analysis workflows (e.g., `/summarise_component`).
     *   **Sampling:** A potential future enhancement for server-side LLM analysis, but likely deferred due to current client/library support.
 *   **`mcp-go` Library:** Implementation should follow the patterns established by `mcp-go` for defining and handling tools, resources, and prompts.
+*   **MCP Conformance:** It is critical to maintain strict adherence to MCP standards, particularly when using the stdio transport. The server **must not** write arbitrary logs or debug information to stdout or stderr, as this will corrupt the JSON-RPC message stream expected by the client. Logging should be directed to a file or other appropriate sink, configurable perhaps via environment variables or a config file.
 *   **Data Ingestion Strategy (Agent-Driven):** The primary initial workflow involves:
     1.  **Scope Definition:** Agent/user defines the analysis scope (repo, directory).
     2.  **Information Gathering:** Agent uses standard tools (`list_files`, `read_file`, `search_files`, `execute_command`) to get code, config, etc.
