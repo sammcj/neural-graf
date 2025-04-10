@@ -1,6 +1,25 @@
 # Project Research: Extending MCP-Graph for Software Architecture Knowledge Graphs
 
-This document summarises the research, goals, and planning for extending the `mcp-graph` server to support the creation and querying of knowledge graphs representing software architectures.
+## Introduction: Vision & High-Level Workflow
+
+**Goal:** To enhance the existing `mcp-graph` server, transforming it into a specialised tool for building and querying a knowledge graph that represents the architecture of software projects. This knowledge graph will serve as a dynamic, queryable model of codebases, enabling deeper understanding, better documentation, and more informed decision-making during development, refactoring, and maintenance.
+
+**Target Interaction:** The primary users of this enhanced server will be AI coding agents (like Cline, Claude, etc.) interacting via the Model Context Protocol (MCP). The server will expose specialised MCP Tools allowing these agents to populate and query the graph based on their analysis of software repositories.
+
+**How it Should Work (Agent-Driven Workflow):**
+
+1.  **Analysis Trigger:** An AI agent is tasked with analysing a software repository (or part of it).
+2.  **Code/Config Retrieval:** The agent uses its standard capabilities (filesystem access, file reading, searching - potentially via other MCP tools or built-in functions) to access source code, dependency manifests, configuration files, etc.
+3.  **Parsing & Identification:** The agent parses these files to identify key architectural elements (functions, classes, services, libraries, dependencies, calls, data stores used, etc.) based on a predefined schema.
+4.  **Graph Population/Update:** For each identified element or relationship, the agent calls specific MCP Tools provided by the `mcp-graph` server (e.g., `find_or_create_entity`, `find_or_create_relationship`). These tools interact with the underlying Neo4j database, ensuring data is added or updated idempotently. The agent provides details like element type, name, file path, relationships, and source of information.
+5.  **Querying & Visualisation:** The agent (or a user interacting with the agent) can then query the populated graph using other specialised MCP Tools (e.g., `find_neighbors`, `get_entity_details`, `get_entity_subgraph`) provided by `mcp-graph`. The agent can use the retrieved graph data to answer questions about the architecture, identify dependencies, assess impact, or generate visualisations (like Mermaid diagrams).
+6.  **Maintenance:** The process includes mechanisms (like timestamping and status flags) to handle code evolution and mark stale data within the graph during subsequent analysis runs.
+
+This agent-driven approach leverages the agent's analytical capabilities while providing it with a structured way (via MCP Tools) to store, update, and retrieve architectural knowledge persistently in the Neo4j graph managed by `mcp-graph`.
+
+---
+
+*This document summarises the research, goals, and planning for extending the `mcp-graph` server to support the creation and querying of knowledge graphs representing software architectures.*
 
 ## 1. Current State & Learnings
 

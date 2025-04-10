@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	graph "github.com/sammcj/mcp-graph/internal/graph"
 )
 
 // MockStore is a mock of Store interface.
@@ -92,6 +93,51 @@ func (mr *MockStoreMockRecorder) DeleteNode(ctx, id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNode", reflect.TypeOf((*MockStore)(nil).DeleteNode), ctx, id)
 }
 
+// FindNeighbors mocks base method.
+func (m *MockStore) FindNeighbors(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (graph.NeighborsResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindNeighbors", ctx, labels, identifyingProperties, maxDepth)
+	ret0, _ := ret[0].(graph.NeighborsResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindNeighbors indicates an expected call of FindNeighbors.
+func (mr *MockStoreMockRecorder) FindNeighbors(ctx, labels, identifyingProperties, maxDepth interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindNeighbors", reflect.TypeOf((*MockStore)(nil).FindNeighbors), ctx, labels, identifyingProperties, maxDepth)
+}
+
+// FindOrCreateEntity mocks base method.
+func (m *MockStore) FindOrCreateEntity(ctx context.Context, input graph.EntityInput) (graph.EntityDetails, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindOrCreateEntity", ctx, input)
+	ret0, _ := ret[0].(graph.EntityDetails)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOrCreateEntity indicates an expected call of FindOrCreateEntity.
+func (mr *MockStoreMockRecorder) FindOrCreateEntity(ctx, input interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOrCreateEntity", reflect.TypeOf((*MockStore)(nil).FindOrCreateEntity), ctx, input)
+}
+
+// FindOrCreateRelationship mocks base method.
+func (m *MockStore) FindOrCreateRelationship(ctx context.Context, input graph.RelationshipInput) (map[string]interface{}, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindOrCreateRelationship", ctx, input)
+	ret0, _ := ret[0].(map[string]interface{})
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOrCreateRelationship indicates an expected call of FindOrCreateRelationship.
+func (mr *MockStoreMockRecorder) FindOrCreateRelationship(ctx, input interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOrCreateRelationship", reflect.TypeOf((*MockStore)(nil).FindOrCreateRelationship), ctx, input)
+}
+
 // GetEdge mocks base method.
 func (m *MockStore) GetEdge(ctx context.Context, id string) (map[string]interface{}, error) {
 	m.ctrl.T.Helper()
@@ -105,6 +151,21 @@ func (m *MockStore) GetEdge(ctx context.Context, id string) (map[string]interfac
 func (mr *MockStoreMockRecorder) GetEdge(ctx, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEdge", reflect.TypeOf((*MockStore)(nil).GetEdge), ctx, id)
+}
+
+// GetEntityDetails mocks base method.
+func (m *MockStore) GetEntityDetails(ctx context.Context, labels []string, identifyingProperties map[string]interface{}) (graph.EntityDetails, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEntityDetails", ctx, labels, identifyingProperties)
+	ret0, _ := ret[0].(graph.EntityDetails)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEntityDetails indicates an expected call of GetEntityDetails.
+func (mr *MockStoreMockRecorder) GetEntityDetails(ctx, labels, identifyingProperties interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEntityDetails", reflect.TypeOf((*MockStore)(nil).GetEntityDetails), ctx, labels, identifyingProperties)
 }
 
 // GetNode mocks base method.

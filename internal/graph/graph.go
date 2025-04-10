@@ -21,6 +21,24 @@ type Store interface {
 
 	// Schema operations
 	UpsertSchema(ctx context.Context, schema string) error
+
+	// --- Software Architecture Specific Operations ---
+
+	// FindOrCreateEntity finds an entity based on identifying properties or creates it if not found.
+	// It merges the provided properties with any existing ones.
+	// Returns the details of the found or created entity.
+	FindOrCreateEntity(ctx context.Context, input EntityInput) (EntityDetails, error)
+
+	// FindOrCreateRelationship finds a relationship or creates it if not found.
+	// It merges the provided properties with any existing ones.
+	// Returns the properties of the found or created relationship.
+	FindOrCreateRelationship(ctx context.Context, input RelationshipInput) (map[string]interface{}, error)
+
+	// GetEntityDetails retrieves the labels and properties of a specific entity.
+	GetEntityDetails(ctx context.Context, labels []string, identifyingProperties map[string]interface{}) (EntityDetails, error)
+
+	// FindNeighbors finds the direct neighbors of a given entity up to a specified depth (depth 1 for direct neighbors).
+	FindNeighbors(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (NeighborsResult, error)
 }
 
 // NodeType represents common node types in the knowledge graph

@@ -149,6 +149,35 @@ func (s *DgraphStore) UpdateNode(ctx context.Context, id string, properties map[
 	return nil
 }
 
+// --- Software Architecture Specific Operations ---
+
+// FindOrCreateEntity finds an entity based on identifying properties or creates it if not found.
+// Dgraph implementation needs careful handling of upserts.
+func (s *DgraphStore) FindOrCreateEntity(ctx context.Context, input graph.EntityInput) (graph.EntityDetails, error) {
+	// Placeholder implementation - Dgraph upserts require specific query logic
+	return graph.EntityDetails{}, fmt.Errorf("FindOrCreateEntity not implemented for Dgraph")
+}
+
+// FindOrCreateRelationship finds a relationship or creates it if not found.
+// Dgraph implementation needs careful handling of upserts.
+func (s *DgraphStore) FindOrCreateRelationship(ctx context.Context, input graph.RelationshipInput) (map[string]interface{}, error) {
+	// Placeholder implementation - Dgraph edge upserts are complex
+	return nil, fmt.Errorf("FindOrCreateRelationship not implemented for Dgraph")
+}
+
+// GetEntityDetails retrieves the labels and properties of a specific entity.
+// Dgraph doesn't have explicit labels like Neo4j, often relies on a 'type' predicate.
+func (s *DgraphStore) GetEntityDetails(ctx context.Context, labels []string, identifyingProperties map[string]interface{}) (graph.EntityDetails, error) {
+	// Placeholder implementation
+	return graph.EntityDetails{}, fmt.Errorf("GetEntityDetails not implemented for Dgraph")
+}
+
+// FindNeighbors finds the direct neighbors of a given entity up to a specified depth.
+func (s *DgraphStore) FindNeighbors(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (graph.NeighborsResult, error) {
+	// Placeholder implementation
+	return graph.NeighborsResult{}, fmt.Errorf("FindNeighbors not implemented for Dgraph")
+}
+
 // DeleteNode deletes a node by ID
 func (s *DgraphStore) DeleteNode(ctx context.Context, id string) error {
 	txn := s.client.NewTxn()
