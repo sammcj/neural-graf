@@ -39,6 +39,15 @@ type Store interface {
 
 	// FindNeighbors finds the direct neighbors of a given entity up to a specified depth (depth 1 for direct neighbors).
 	FindNeighbors(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (NeighborsResult, error)
+
+	// FindDependencies finds entities that the target entity depends on, up to a specified depth.
+	FindDependencies(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, relationshipTypes []string, maxDepth int) (DependencyResult, error)
+
+	// FindDependents finds entities that depend on the target entity, up to a specified depth.
+	FindDependents(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, relationshipTypes []string, maxDepth int) (DependencyResult, error)
+
+	// GetEntitySubgraph retrieves nodes and relationships around a central entity, suitable for visualisation.
+	GetEntitySubgraph(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (SubgraphResult, error)
 }
 
 // NodeType represents common node types in the knowledge graph

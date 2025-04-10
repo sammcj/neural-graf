@@ -188,3 +188,34 @@ type NeighborsResult struct {
 	CentralNode EntityDetails `json:"centralNode"`
 	Neighbors   []Neighbor    `json:"neighbors"`
 }
+
+// DependencyResult represents the output for find_dependencies/find_dependents.
+type DependencyResult struct {
+	TargetNode EntityDetails   `json:"targetNode"` // The node for which dependencies/dependents were found
+	Results    []EntityDetails `json:"results"`    // List of dependencies or dependents
+	Depth      int             `json:"depth"`      // The depth searched
+	Direction  string          `json:"direction"`  // "dependencies" or "dependents"
+}
+
+// SubgraphNode represents a node within a subgraph result, simplified for visualisation.
+type SubgraphNode struct {
+	ID     string                 `json:"id"`     // Unique ID (e.g., elementId)
+	Labels []string               `json:"labels"` // Node labels
+	Name   string                 `json:"name"`   // Primary display name
+	Props  map[string]interface{} `json:"props"`  // Selected properties for display
+}
+
+// SubgraphRelationship represents a relationship within a subgraph result.
+type SubgraphRelationship struct {
+	ID        string                 `json:"id"`        // Unique ID (e.g., elementId)
+	StartNode string                 `json:"startNode"` // ID of the start node
+	EndNode   string                 `json:"endNode"`   // ID of the end node
+	Type      string                 `json:"type"`      // Relationship type
+	Props     map[string]interface{} `json:"props"`     // Selected properties for display
+}
+
+// SubgraphResult represents the output for get_entity_subgraph, suitable for visualisation.
+type SubgraphResult struct {
+	Nodes         []SubgraphNode         `json:"nodes"`
+	Relationships []SubgraphRelationship `json:"relationships"`
+}

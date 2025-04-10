@@ -888,3 +888,341 @@ func (s *Neo4jStore) FindNeighbors(ctx context.Context, labels []string, identif
 		Neighbors:   neighborsResult,
 	}, nil
 }
+
+// buildRelationshipTypeFilter builds the relationship type part of a Cypher query.
+// Example: ":REL1|:REL2" or "" if types are empty.
+func buildRelationshipTypeFilter(types []string) string {
+	if len(types) == 0 {
+		return "" // Match any relationship type
+	}
+	var quotedTypes []string
+	for _, t := range types {
+		// Basic sanitization/quoting might be needed depending on allowed characters
+		quotedTypes = append(quotedTypes, ":"+t)
+	}
+	return strings.Join(quotedTypes, "|")
+}
+
+
+// FindDependencies finds entities that the target entity depends on (outgoing relationships),
+// following specified relationship types up to a certain depth.
+func (s *Neo4jStore) FindDependencies(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, relationshipTypes []string, maxDepth int) (graph.DependencyResult, error) {
+	if len(labels) == 0 {
+		return graph.DependencyResult{}, fmt.Errorf("at least one label is required for the target node")
+	}
+	if len(identifyingProperties) == 0 {
+		return graph.DependencyResult{}, fmt.Errorf("at least one identifying property is required for the target node")
+	}
+	if maxDepth <= 0 {
+		maxDepth = 1 // Default to depth 1 if invalid
+	}
+
+	// First, get the target node details to include in the result
+	targetNodeDetails, err := s.GetEntityDetails(ctx, labels, identifyingProperties)
+	if err != nil {
+		return graph.DependencyResult{}, fmt.Errorf("target node not found or error fetching details: %w", err)
+	}
+
+	// Build label string for the target node
+	labelStr := ":" + strings.Join(labels, ":")
+
+	// Build identifying properties match string for the target node
+	var idPropsParts []string
+	for k := range identifyingProperties {
+		idPropsParts = append(idPropsParts, fmt.Sprintf("%s: $idProps.%s", k, k))
+	}
+	idPropsMatchStr := "{" + strings.Join(idPropsParts, ", ") + "}"
+
+	// Build relationship type filter string
+	relTypeFilter := buildRelationshipTypeFilter(relationshipTypes)
+
+	// Construct the MATCH query for dependencies (outgoing relationships)
+	query := fmt.Sprintf(`
+        MATCH (target%s %s)
+        MATCH (target)-[r%s*1..%d]->(dependency)
+        WHERE target <> dependency
+        RETURN DISTINCT
+            labels(dependency) as depLabels,
+            properties(dependency) as depProps,
+            elementId(dependency) as depId
+        LIMIT 500 // Add a reasonable limit
+    `, labelStr, idPropsMatchStr, relTypeFilter, maxDepth)
+
+	params := map[string]interface{}{
+		"idProps": identifyingProperties,
+	}
+
+	// Execute query
+	result, err := neo4j.ExecuteQuery(ctx, s.driver, query, params, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase(""))
+	if err != nil {
+		return graph.DependencyResult{}, fmt.Errorf("failed to execute FindDependencies query: %w", err)
+	}
+
+	// Process results
+	dependencies := make([]graph.EntityDetails, 0, len(result.Records))
+	for _, record := range result.Records {
+		depLabelsVal, _ := record.Get("depLabels")
+		depPropsVal, _ := record.Get("depProps")
+		depIdVal, _ := record.Get("depId")
+
+		depLabelsInterface, _ := depLabelsVal.([]interface{})
+		depLabels := make([]string, len(depLabelsInterface))
+		for i, l := range depLabelsInterface {
+			depLabels[i], _ = l.(string)
+		}
+
+		depProps, _ := depPropsVal.(map[string]interface{})
+		depId, _ := depIdVal.(string)
+		depProps["id"] = depId // Add element ID
+
+		// Convert properties
+		for k, v := range depProps {
+			depProps[k] = convertNeo4jValue(v)
+		}
+
+		dependencies = append(dependencies, graph.EntityDetails{
+			Labels:     depLabels,
+			Properties: depProps,
+		})
+	}
+
+	return graph.DependencyResult{
+		TargetNode: targetNodeDetails,
+		Results:    dependencies,
+		Depth:      maxDepth,
+		Direction:  "dependencies",
+	}, nil
+}
+
+// FindDependents finds entities that depend on the target entity (incoming relationships),
+// following specified relationship types up to a certain depth.
+func (s *Neo4jStore) FindDependents(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, relationshipTypes []string, maxDepth int) (graph.DependencyResult, error) {
+	if len(labels) == 0 {
+		return graph.DependencyResult{}, fmt.Errorf("at least one label is required for the target node")
+	}
+	if len(identifyingProperties) == 0 {
+		return graph.DependencyResult{}, fmt.Errorf("at least one identifying property is required for the target node")
+	}
+	if maxDepth <= 0 {
+		maxDepth = 1 // Default to depth 1 if invalid
+	}
+
+	// First, get the target node details
+	targetNodeDetails, err := s.GetEntityDetails(ctx, labels, identifyingProperties)
+	if err != nil {
+		return graph.DependencyResult{}, fmt.Errorf("target node not found or error fetching details: %w", err)
+	}
+
+	// Build label string for the target node
+	labelStr := ":" + strings.Join(labels, ":")
+
+	// Build identifying properties match string for the target node
+	var idPropsParts []string
+	for k := range identifyingProperties {
+		idPropsParts = append(idPropsParts, fmt.Sprintf("%s: $idProps.%s", k, k))
+	}
+	idPropsMatchStr := "{" + strings.Join(idPropsParts, ", ") + "}"
+
+	// Build relationship type filter string
+	relTypeFilter := buildRelationshipTypeFilter(relationshipTypes)
+
+	// Construct the MATCH query for dependents (incoming relationships)
+	query := fmt.Sprintf(`
+        MATCH (target%s %s)
+        MATCH (dependent)-[r%s*1..%d]->(target)
+        WHERE target <> dependent
+        RETURN DISTINCT
+            labels(dependent) as depLabels,
+            properties(dependent) as depProps,
+            elementId(dependent) as depId
+        LIMIT 500 // Add a reasonable limit
+    `, labelStr, idPropsMatchStr, relTypeFilter, maxDepth)
+
+	params := map[string]interface{}{
+		"idProps": identifyingProperties,
+	}
+
+	// Execute query
+	result, err := neo4j.ExecuteQuery(ctx, s.driver, query, params, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase(""))
+	if err != nil {
+		return graph.DependencyResult{}, fmt.Errorf("failed to execute FindDependents query: %w", err)
+	}
+
+	// Process results
+	dependents := make([]graph.EntityDetails, 0, len(result.Records))
+	for _, record := range result.Records {
+		depLabelsVal, _ := record.Get("depLabels")
+		depPropsVal, _ := record.Get("depProps")
+		depIdVal, _ := record.Get("depId")
+
+		depLabelsInterface, _ := depLabelsVal.([]interface{})
+		depLabels := make([]string, len(depLabelsInterface))
+		for i, l := range depLabelsInterface {
+			depLabels[i], _ = l.(string)
+		}
+
+		depProps, _ := depPropsVal.(map[string]interface{})
+		depId, _ := depIdVal.(string)
+		depProps["id"] = depId // Add element ID
+
+		// Convert properties
+		for k, v := range depProps {
+			depProps[k] = convertNeo4jValue(v)
+		}
+
+		dependents = append(dependents, graph.EntityDetails{
+			Labels:     depLabels,
+			Properties: depProps,
+		})
+	}
+
+	return graph.DependencyResult{
+		TargetNode: targetNodeDetails,
+		Results:    dependents,
+		Depth:      maxDepth,
+		Direction:  "dependents",
+	}, nil
+}
+
+// GetEntitySubgraph retrieves nodes and relationships around a central entity up to a specified depth,
+// formatted suitably for visualisation tools like Mermaid.
+func (s *Neo4jStore) GetEntitySubgraph(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (graph.SubgraphResult, error) {
+	if len(labels) == 0 {
+		return graph.SubgraphResult{}, fmt.Errorf("at least one label is required for the target node")
+	}
+	if len(identifyingProperties) == 0 {
+		return graph.SubgraphResult{}, fmt.Errorf("at least one identifying property is required for the target node")
+	}
+	if maxDepth <= 0 {
+		maxDepth = 1 // Default to depth 1 if invalid
+	}
+
+	// Build label string for the target node
+	labelStr := ":" + strings.Join(labels, ":")
+
+	// Build identifying properties match string for the target node
+	var idPropsParts []string
+	for k := range identifyingProperties {
+		idPropsParts = append(idPropsParts, fmt.Sprintf("%s: $idProps.%s", k, k))
+	}
+	idPropsMatchStr := "{" + strings.Join(idPropsParts, ", ") + "}"
+
+	// Construct the MATCH query to get the subgraph
+	// Uses apoc.path.subgraphAll for efficient subgraph retrieval
+	// Returns distinct nodes and relationships within the specified depth
+	query := fmt.Sprintf(`
+        MATCH (target%s %s)
+        CALL apoc.path.subgraphAll(target, {maxLevel: %d})
+        YIELD nodes, relationships
+        RETURN
+            [node IN nodes | { id: elementId(node), labels: labels(node), name: node.name, props: properties(node) }] AS subgraphNodes,
+            [rel IN relationships | { id: elementId(rel), startNode: elementId(startNode(rel)), endNode: elementId(endNode(rel)), type: type(rel), props: properties(rel) }] AS subgraphRels
+    `, labelStr, idPropsMatchStr, maxDepth)
+
+	params := map[string]interface{}{
+		"idProps": identifyingProperties,
+	}
+
+	// Execute query
+	result, err := neo4j.ExecuteQuery(ctx, s.driver, query, params, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase(""))
+	if err != nil {
+		// Check if the error is due to APOC procedure not found
+		if strings.Contains(err.Error(), "Unknown function 'apoc.path.subgraphAll'") {
+			return graph.SubgraphResult{}, fmt.Errorf("failed to execute GetEntitySubgraph query: APOC procedures might not be installed or enabled on the Neo4j server. Error: %w", err)
+		}
+		return graph.SubgraphResult{}, fmt.Errorf("failed to execute GetEntitySubgraph query: %w", err)
+	}
+
+	if len(result.Records) == 0 {
+		// This could mean the target node wasn't found, or APOC didn't return results
+		// Check if the target node exists first
+		_, err := s.GetEntityDetails(ctx, labels, identifyingProperties)
+		if err != nil {
+			return graph.SubgraphResult{}, fmt.Errorf("target node not found or error fetching details: %w", err)
+		}
+		// Node exists, but subgraph is empty (or APOC issue)
+		return graph.SubgraphResult{Nodes: []graph.SubgraphNode{}, Relationships: []graph.SubgraphRelationship{}}, nil
+	}
+
+	record := result.Records[0]
+
+	// Process nodes
+	nodesVal, _ := record.Get("subgraphNodes")
+	nodesInterface, _ := nodesVal.([]interface{})
+	subgraphNodes := make([]graph.SubgraphNode, 0, len(nodesInterface))
+	for _, nodeIntf := range nodesInterface {
+		nodeMap, ok := nodeIntf.(map[string]interface{})
+		if !ok { continue }
+
+		nodeID, _ := nodeMap["id"].(string)
+		nodeLabelsIntf, _ := nodeMap["labels"].([]interface{})
+		nodeName, _ := nodeMap["name"].(string) // Assuming 'name' is the primary display property
+		nodeProps, _ := nodeMap["props"].(map[string]interface{})
+
+		nodeLabels := make([]string, len(nodeLabelsIntf))
+		for i, l := range nodeLabelsIntf {
+			nodeLabels[i], _ = l.(string)
+		}
+
+		// Convert properties, potentially selecting a subset for visualisation
+		convertedProps := make(map[string]interface{})
+		for k, v := range nodeProps {
+			// Example: Only include certain properties or simplify complex ones
+			if k != "id" && k != "createdAt" && k != "lastModifiedAt" { // Exclude some common ones
+				convertedProps[k] = convertNeo4jValue(v)
+			}
+		}
+		// Ensure ID is present if not already included in props map conversion
+		if _, exists := convertedProps["id"]; !exists {
+			convertedProps["id"] = nodeID
+		}
+
+
+		subgraphNodes = append(subgraphNodes, graph.SubgraphNode{
+			ID:     nodeID,
+			Labels: nodeLabels,
+			Name:   nodeName,
+			Props:  convertedProps,
+		})
+	}
+
+	// Process relationships
+	relsVal, _ := record.Get("subgraphRels")
+	relsInterface, _ := relsVal.([]interface{})
+	subgraphRels := make([]graph.SubgraphRelationship, 0, len(relsInterface))
+	for _, relIntf := range relsInterface {
+		relMap, ok := relIntf.(map[string]interface{})
+		if !ok { continue }
+
+		relID, _ := relMap["id"].(string)
+		startNodeID, _ := relMap["startNode"].(string)
+		endNodeID, _ := relMap["endNode"].(string)
+		relType, _ := relMap["type"].(string)
+		relProps, _ := relMap["props"].(map[string]interface{})
+
+		// Convert properties
+		convertedProps := make(map[string]interface{})
+		for k, v := range relProps {
+			if k != "id" && k != "createdAt" && k != "lastModifiedAt" {
+				convertedProps[k] = convertNeo4jValue(v)
+			}
+		}
+		if _, exists := convertedProps["id"]; !exists {
+			convertedProps["id"] = relID
+		}
+
+
+		subgraphRels = append(subgraphRels, graph.SubgraphRelationship{
+			ID:        relID,
+			StartNode: startNodeID,
+			EndNode:   endNodeID,
+			Type:      relType,
+			Props:     convertedProps,
+		})
+	}
+
+	return graph.SubgraphResult{
+		Nodes:         subgraphNodes,
+		Relationships: subgraphRels,
+	}, nil
+}

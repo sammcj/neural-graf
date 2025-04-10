@@ -93,6 +93,36 @@ func (mr *MockStoreMockRecorder) DeleteNode(ctx, id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNode", reflect.TypeOf((*MockStore)(nil).DeleteNode), ctx, id)
 }
 
+// FindDependencies mocks base method.
+func (m *MockStore) FindDependencies(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, relationshipTypes []string, maxDepth int) (graph.DependencyResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindDependencies", ctx, labels, identifyingProperties, relationshipTypes, maxDepth)
+	ret0, _ := ret[0].(graph.DependencyResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindDependencies indicates an expected call of FindDependencies.
+func (mr *MockStoreMockRecorder) FindDependencies(ctx, labels, identifyingProperties, relationshipTypes, maxDepth interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDependencies", reflect.TypeOf((*MockStore)(nil).FindDependencies), ctx, labels, identifyingProperties, relationshipTypes, maxDepth)
+}
+
+// FindDependents mocks base method.
+func (m *MockStore) FindDependents(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, relationshipTypes []string, maxDepth int) (graph.DependencyResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindDependents", ctx, labels, identifyingProperties, relationshipTypes, maxDepth)
+	ret0, _ := ret[0].(graph.DependencyResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindDependents indicates an expected call of FindDependents.
+func (mr *MockStoreMockRecorder) FindDependents(ctx, labels, identifyingProperties, relationshipTypes, maxDepth interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindDependents", reflect.TypeOf((*MockStore)(nil).FindDependents), ctx, labels, identifyingProperties, relationshipTypes, maxDepth)
+}
+
 // FindNeighbors mocks base method.
 func (m *MockStore) FindNeighbors(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (graph.NeighborsResult, error) {
 	m.ctrl.T.Helper()
@@ -166,6 +196,21 @@ func (m *MockStore) GetEntityDetails(ctx context.Context, labels []string, ident
 func (mr *MockStoreMockRecorder) GetEntityDetails(ctx, labels, identifyingProperties interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEntityDetails", reflect.TypeOf((*MockStore)(nil).GetEntityDetails), ctx, labels, identifyingProperties)
+}
+
+// GetEntitySubgraph mocks base method.
+func (m *MockStore) GetEntitySubgraph(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (graph.SubgraphResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEntitySubgraph", ctx, labels, identifyingProperties, maxDepth)
+	ret0, _ := ret[0].(graph.SubgraphResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEntitySubgraph indicates an expected call of GetEntitySubgraph.
+func (mr *MockStoreMockRecorder) GetEntitySubgraph(ctx, labels, identifyingProperties, maxDepth interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEntitySubgraph", reflect.TypeOf((*MockStore)(nil).GetEntitySubgraph), ctx, labels, identifyingProperties, maxDepth)
 }
 
 // GetNode mocks base method.

@@ -178,6 +178,24 @@ func (s *DgraphStore) FindNeighbors(ctx context.Context, labels []string, identi
 	return graph.NeighborsResult{}, fmt.Errorf("FindNeighbors not implemented for Dgraph")
 }
 
+// FindDependencies finds entities that the target entity depends on, up to a specified depth.
+func (s *DgraphStore) FindDependencies(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, relationshipTypes []string, maxDepth int) (graph.DependencyResult, error) {
+	// Placeholder implementation
+	return graph.DependencyResult{}, fmt.Errorf("FindDependencies not implemented for Dgraph")
+}
+
+// FindDependents finds entities that depend on the target entity, up to a specified depth.
+func (s *DgraphStore) FindDependents(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, relationshipTypes []string, maxDepth int) (graph.DependencyResult, error) {
+	// Placeholder implementation
+	return graph.DependencyResult{}, fmt.Errorf("FindDependents not implemented for Dgraph")
+}
+
+// GetEntitySubgraph retrieves nodes and relationships around a central entity, suitable for visualisation.
+func (s *DgraphStore) GetEntitySubgraph(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (graph.SubgraphResult, error) {
+	// Placeholder implementation
+	return graph.SubgraphResult{}, fmt.Errorf("GetEntitySubgraph not implemented for Dgraph")
+}
+
 // DeleteNode deletes a node by ID
 func (s *DgraphStore) DeleteNode(ctx context.Context, id string) error {
 	txn := s.client.NewTxn()

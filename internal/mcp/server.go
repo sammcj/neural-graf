@@ -261,6 +261,65 @@ func (s *Server) SetupTools() {
 		),
 	)
 	s.server.AddTool(findNeighborsTool, s.handleFindNeighborsTool)
+
+	findDependenciesTool := mcp.NewTool("find_dependencies",
+		mcp.WithDescription("Finds entities that the target entity depends on (outgoing relationships) up to a given depth."),
+		mcp.WithArray("labels",
+			mcp.Required(),
+			mcp.Description("List of labels for the target entity."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
+		),
+		mcp.WithObject("identifyingProperties",
+			mcp.Required(),
+			mcp.Description("Map of properties to uniquely identify the target entity."),
+		),
+		mcp.WithArray("relationshipTypes",
+			mcp.Description("Optional list of relationship types to follow (e.g., ['DEPENDS_ON', 'CALLS']). If empty, follows all types."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
+		),
+		mcp.WithNumber("maxDepth",
+			mcp.Description("Maximum depth to search for dependencies (default: 1)."),
+		),
+	)
+	s.server.AddTool(findDependenciesTool, s.handleFindDependenciesTool)
+
+	findDependentsTool := mcp.NewTool("find_dependents",
+		mcp.WithDescription("Finds entities that depend on the target entity (incoming relationships) up to a given depth."),
+		mcp.WithArray("labels",
+			mcp.Required(),
+			mcp.Description("List of labels for the target entity."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
+		),
+		mcp.WithObject("identifyingProperties",
+			mcp.Required(),
+			mcp.Description("Map of properties to uniquely identify the target entity."),
+		),
+		mcp.WithArray("relationshipTypes",
+			mcp.Description("Optional list of relationship types to follow (e.g., ['DEPENDS_ON', 'CALLS']). If empty, follows all types."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
+		),
+		mcp.WithNumber("maxDepth",
+			mcp.Description("Maximum depth to search for dependents (default: 1)."),
+		),
+	)
+	s.server.AddTool(findDependentsTool, s.handleFindDependentsTool)
+
+	getEntitySubgraphTool := mcp.NewTool("get_entity_subgraph",
+		mcp.WithDescription("Retrieves nodes and relationships around a central entity, suitable for visualisation."),
+		mcp.WithArray("labels",
+			mcp.Required(),
+			mcp.Description("List of labels for the central entity."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
+		),
+		mcp.WithObject("identifyingProperties",
+			mcp.Required(),
+			mcp.Description("Map of properties to uniquely identify the central entity."),
+		),
+		mcp.WithNumber("maxDepth",
+			mcp.Description("Maximum depth to retrieve the subgraph (default: 1)."),
+		),
+	)
+	s.server.AddTool(getEntitySubgraphTool, s.handleGetEntitySubgraphTool)
 }
 
 // handleQueryTool handles the query_knowledge_graph tool
@@ -770,6 +829,133 @@ func (s *Server) handleFindNeighborsTool(ctx context.Context, request mcp.CallTo
 	resultJSON, err := json.Marshal(neighborsResult)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal neighbors result: %w", err)
+	}
+	return mcp.NewToolResultText(string(resultJSON)), nil
+}
+
+// Helper function to parse common arguments for dependency/subgraph tools
+func parseEntityLocatorArgs(request mcp.CallToolRequest) (labels []string, idProps map[string]interface{}, maxDepth int, err error) {
+	var ok bool
+	maxDepth = 1 // Default
+
+	// Parse labels
+	labelsArg, ok := request.Params.Arguments["labels"]
+	if !ok { err = errors.New("labels are required"); return }
+	labelsInterface, ok := labelsArg.([]interface{})
+	if !ok { err = errors.New("labels must be an array of strings"); return }
+	labels = make([]string, len(labelsInterface))
+	for i, l := range labelsInterface {
+		labels[i], ok = l.(string)
+		if !ok { err = fmt.Errorf("label item at index %d is not a string", i); return }
+	}
+	if len(labels) == 0 { err = errors.New("at least one label is required"); return }
+
+	// Parse identifyingProperties
+	idPropsArg, ok := request.Params.Arguments["identifyingProperties"]
+	if !ok { err = errors.New("identifyingProperties are required"); return }
+	idProps, ok = idPropsArg.(map[string]interface{})
+	if !ok { err = errors.New("identifyingProperties must be an object"); return }
+	if len(idProps) == 0 { err = errors.New("at least one identifying property is required"); return }
+
+	// Parse maxDepth (optional)
+	if depthArg, exists := request.Params.Arguments["maxDepth"]; exists && depthArg != nil {
+		depthFloat, ok := depthArg.(float64) // JSON numbers are often float64
+		if !ok { err = errors.New("maxDepth must be a number"); return }
+		maxDepth = int(depthFloat)
+		if maxDepth <= 0 {
+			maxDepth = 1 // Ensure positive depth
+		}
+	}
+	return
+}
+
+// Helper function to parse optional relationship types
+func parseOptionalRelationshipTypes(request mcp.CallToolRequest) ([]string, error) {
+	var relTypes []string
+	if relTypesArg, exists := request.Params.Arguments["relationshipTypes"]; exists && relTypesArg != nil {
+		relTypesInterface, ok := relTypesArg.([]interface{})
+		if !ok {
+			return nil, errors.New("relationshipTypes must be an array of strings")
+		}
+		relTypes = make([]string, len(relTypesInterface))
+		for i, rt := range relTypesInterface {
+			relTypes[i], ok = rt.(string)
+			if !ok {
+				return nil, fmt.Errorf("relationshipType item at index %d is not a string", i)
+			}
+		}
+	}
+	return relTypes, nil
+}
+
+
+// handleFindDependenciesTool handles the find_dependencies tool
+func (s *Server) handleFindDependenciesTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	labels, idProps, maxDepth, err := parseEntityLocatorArgs(request)
+	if err != nil {
+		return nil, err
+	}
+	relTypes, err := parseOptionalRelationshipTypes(request)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call graph store method
+	depResult, err := s.graph.FindDependencies(ctx, labels, idProps, relTypes, maxDepth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find dependencies: %w", err)
+	}
+
+	// Return the result
+	resultJSON, err := json.Marshal(depResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal dependency result: %w", err)
+	}
+	return mcp.NewToolResultText(string(resultJSON)), nil
+}
+
+// handleFindDependentsTool handles the find_dependents tool
+func (s *Server) handleFindDependentsTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	labels, idProps, maxDepth, err := parseEntityLocatorArgs(request)
+	if err != nil {
+		return nil, err
+	}
+	relTypes, err := parseOptionalRelationshipTypes(request)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call graph store method
+	depResult, err := s.graph.FindDependents(ctx, labels, idProps, relTypes, maxDepth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find dependents: %w", err)
+	}
+
+	// Return the result
+	resultJSON, err := json.Marshal(depResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal dependency result: %w", err)
+	}
+	return mcp.NewToolResultText(string(resultJSON)), nil
+}
+
+// handleGetEntitySubgraphTool handles the get_entity_subgraph tool
+func (s *Server) handleGetEntitySubgraphTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	labels, idProps, maxDepth, err := parseEntityLocatorArgs(request)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call graph store method
+	subgraphResult, err := s.graph.GetEntitySubgraph(ctx, labels, idProps, maxDepth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get entity subgraph: %w", err)
+	}
+
+	// Return the result
+	resultJSON, err := json.Marshal(subgraphResult)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal subgraph result: %w", err)
 	}
 	return mcp.NewToolResultText(string(resultJSON)), nil
 }
