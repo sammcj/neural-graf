@@ -94,15 +94,46 @@ This document summarises the research, goals, and planning for extending the `mc
     4.  **Graph Population:** Agent uses the specialised `find_or_create_entity` and `find_or_create_relationship` tools to add/update the graph idempotently.
     5.  **Stale Marking:** Agent applies the stale marking strategy after processing a scope.
     6.  **Iteration:** Agent moves to the next scope.
-    This relies on the agent's parsing capabilities and its understanding of the tools via their descriptions. Automated static analysis integration is a potential enhancement.
-*   **Error Handling:** Tool handlers must manage errors gracefully, returning meaningful error information within the `CallToolResult` for the agent to process (e.g., specific error types like `ENTITY_NOT_FOUND`).
+    This relies on the agent's parsing capabilities and its understanding of the tools via their descriptions.
+*   **Server-Side Analysis (Future Enhancement):**
+    *   An alternative approach involves the `mcp-graph` server performing the analysis directly. This would require a tool like `analyse_codebase(path, options)` and direct filesystem access for the server.
+    *   **Pros:** Potentially more efficient for bulk ingestion by avoiding numerous MCP calls. Centralises parsing logic.
+    *   **Cons:** Increases server complexity (filesystem access, multi-language parsing). Security considerations for server filesystem access.
+    *   **Multi-Language Handling:** Implementing multi-language parsing in the Go server is complex. Options include:
+        1.  Executing external static analysis tools (requires managing tool dependencies in the server environment).
+        2.  Using Go bindings for libraries like Tree-sitter (introduces CGo dependency, requires writing tree traversal logic per language).
+    *   **Decision:** Prioritise the agent-driven approach initially. Server-side analysis can be added later as an optional, potentially more performant, bulk ingestion method if needed.
+*   **Error Handling:** Tool handlers must manage errors gracefully, returning meaningful error information within the `CallToolResult` (e.g., `{ "isError": true, "content": [{"type": "text", "text": "Error: ENTITY_NOT_FOUND - Node with ID 'xyz' not found."}] }`) for the agent to process. Define consistent error structures.
 *   **Stale Data Management:** Keeping the graph synchronised requires handling deletions or changes. The proposed "Stale Marking Strategy" involves:
     *   Updating a `lastModifiedAt` timestamp on entities/relationships touched during an analysis run (via `find_or_create_...`).
     *   After analysing a scope (e.g., a file), querying for entities expected within that scope.
     *   Marking entities found in the graph but *not* in the current analysis as 'stale' or 'deprecated' using their `status` property.
-*   **Performance:** Indexes must be created in Neo4j on properties used for matching in `find_or_create_entity/relationship` (e.g., `name`, `filePath`, `url`) to ensure `MERGE` performance.
+*   **Performance & Scalability:**
+    *   **Indexing:** Indexes *must* be created in Neo4j on properties used for matching in `find_or_create_entity/relationship` (e.g., `:Function(name, filePath)`, `:Repository(url)`) to ensure `MERGE` performance. Document required indexes.
+    *   **Query Optimisation:** Ensure Cypher queries used within tool handlers are efficient and parameterised.
+    *   **Batching:** Consider if future tools for batch creation/linking might be beneficial, although the `find_or_create_...` pattern handles idempotency well for individual items.
+*   **Schema Evolution:** Plan for how schema changes will be managed over time (e.g., manual updates initially, potential future migration tooling).
 
-## 5. Next Steps (Planning)
+## 5. Implementation Plan & Next Steps
+
+1.  **Phase 1 (Core Functionality - Agent-Driven):**
+    *   Implement the defined Neo4j schema (node labels, properties, relationship types).
+    *   Create required Neo4j indexes for performance.
+    *   Implement the prioritised MCP Tools using `mcp-go`:
+        *   `find_or_create_entity` (handling updates)
+        *   `find_or_create_relationship` (handling updates)
+        *   `get_entity_details`
+        *   `find_neighbors`
+    *   Ensure high-quality tool descriptions and input schemas.
+    *   Implement robust error handling within tools.
+    *   Document the expected agent-driven workflow and the stale-marking strategy.
+2.  **Phase 2 (Enhancements):**
+    *   Implement more advanced query tools (`find_dependencies`, `visualise_component`).
+    *   Optionally implement server-side analysis (`analyse_codebase`) if needed for bulk ingestion performance, addressing multi-language parsing challenges.
+    *   Optionally implement MCP Resources or Prompts for user-controlled interactions.
+    *   Refine stale data handling (e.g., dedicated tool).
+
+**Next Step:** Transition to ACT MODE to begin Phase 1 implementation.
 
 1.  Finalise the detailed schema properties for core node and relationship types.
 2.  Prioritise and define the first set of specialised MCP Tools to implement (likely focusing on entity/relationship creation and basic querying).
