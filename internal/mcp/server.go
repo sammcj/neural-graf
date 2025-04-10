@@ -187,7 +187,7 @@ func (s *Server) SetupTools() {
 		mcp.WithArray("labels",
 			mcp.Required(),
 			mcp.Description("List of labels for the entity (e.g., ['Function', 'Go']). At least one label is required."),
-			mcp.Items(mcp.String()), // Changed from mcp.NewSchema().Type("string")
+			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
 		),
 		mcp.WithObject("identifyingProperties",
 			mcp.Required(),
@@ -205,7 +205,7 @@ func (s *Server) SetupTools() {
 		mcp.WithArray("startNodeLabels",
 			mcp.Required(),
 			mcp.Description("List of labels for the start node."),
-			mcp.Items(mcp.String()), // Changed from mcp.NewSchema().Type("string")
+			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
 		),
 		mcp.WithObject("startNodeIdentifyingProperties",
 			mcp.Required(),
@@ -214,7 +214,7 @@ func (s *Server) SetupTools() {
 		mcp.WithArray("endNodeLabels",
 			mcp.Required(),
 			mcp.Description("List of labels for the end node."),
-			mcp.Items(mcp.String()), // Changed from mcp.NewSchema().Type("string")
+			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
 		),
 		mcp.WithObject("endNodeIdentifyingProperties",
 			mcp.Required(),
@@ -235,7 +235,7 @@ func (s *Server) SetupTools() {
 		mcp.WithArray("labels",
 			mcp.Required(),
 			mcp.Description("List of labels to identify the entity."),
-			mcp.Items(mcp.String()), // Changed from mcp.NewSchema().Type("string")
+			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
 		),
 		mcp.WithObject("identifyingProperties",
 			mcp.Required(),
@@ -249,7 +249,7 @@ func (s *Server) SetupTools() {
 		mcp.WithArray("labels",
 			mcp.Required(),
 			mcp.Description("List of labels for the central entity."),
-			mcp.Items(mcp.String()), // Changed from mcp.NewSchema().Type("string")
+			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
 		),
 		mcp.WithObject("identifyingProperties",
 			mcp.Required(),

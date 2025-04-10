@@ -201,3 +201,58 @@ go run cmd/server/main.go
 This will start both the MCP server and the RESTful API server, allowing clients to interact with the knowledge graph through either interface.
 
 This implementation plan provides a structured approach to building the mcp-graph system, with each phase building upon the previous ones. As we complete each phase, we'll update this checklist to track our progress.
+
+## Database Schema & Indexing (Neo4j)
+
+To ensure optimal performance for the software architecture knowledge graph features, especially for `MERGE` and `MATCH` operations used by the `find_or_create_entity`, `find_or_create_relationship`, `get_entity_details`, and `find_neighbors` tools, the following indexes are recommended in Neo4j. These should be created after the Neo4j instance is running and before significant data ingestion.
+
+**Note:** The exact index names (`index_name_...`) are suggestions and can be adjusted.
+
+```cypher
+// Indexes for unique identification
+
+// Repository by URL
+CREATE INDEX index_name_repository_url IF NOT EXISTS FOR (n:Repository) ON (n.url);
+
+// Module by definition file path
+CREATE INDEX index_name_module_filepath IF NOT EXISTS FOR (n:Module) ON (n.filePath);
+
+// File (and ConfigurationFile) by file path
+CREATE INDEX index_name_file_filepath IF NOT EXISTS FOR (n:File) ON (n.filePath);
+// CREATE INDEX index_name_configfile_filepath IF NOT EXISTS FOR (n:ConfigurationFile) ON (n.filePath); // If ConfigurationFile is a separate label
+
+// Function by file path and name (Composite)
+CREATE INDEX index_name_function_filepath_name IF NOT EXISTS FOR (n:Function) ON (n.filePath, n.name);
+// Optional: Index on signature if used for identification
+// CREATE INDEX index_name_function_signature IF NOT EXISTS FOR (n:Function) ON (n.signature);
+
+// Class by file path and name (Composite)
+CREATE INDEX index_name_class_filepath_name IF NOT EXISTS FOR (n:Class) ON (n.filePath, n.name);
+
+// Interface by file path and name (Composite)
+CREATE INDEX index_name_interface_filepath_name IF NOT EXISTS FOR (n:Interface) ON (n.filePath, n.name);
+
+// Library by name and version (Composite) - Adjust if groupId/artifactId are primary identifiers
+CREATE INDEX index_name_library_name_version IF NOT EXISTS FOR (n:Library) ON (n.name, n.version);
+// CREATE INDEX index_name_library_group_artifact_version IF NOT EXISTS FOR (n:Library) ON (n.groupId, n.artifactId, n.version);
+
+// DataStore by type and location (Composite)
+CREATE INDEX index_name_datastore_type_location IF NOT EXISTS FOR (n:DataStore) ON (n.type, n.location);
+
+// Service by name
+CREATE INDEX index_name_service_name IF NOT EXISTS FOR (n:Service) ON (n.name);
+
+// Component by name
+CREATE INDEX index_name_component_name IF NOT EXISTS FOR (n:Component) ON (n.name);
+
+// Application by name
+CREATE INDEX index_name_application_name IF NOT EXISTS FOR (n:Application) ON (n.name);
+
+// ExternalAPI by endpoint URL
+CREATE INDEX index_name_externalapi_endpointurl IF NOT EXISTS FOR (n:ExternalAPI) ON (n.endpointUrl);
+
+// General purpose indexes (Optional but potentially useful)
+// CREATE INDEX index_name_node_name IF NOT EXISTS FOR (n) ON (n.name); // Generic name index - use with caution on large graphs
+```
+
+These indexes help Neo4j quickly locate nodes based on the properties used in `MATCH` and `MERGE` clauses, significantly improving query performance.
