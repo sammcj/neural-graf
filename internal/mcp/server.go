@@ -40,142 +40,142 @@ func NewServer(name, version string, graph graph.Store) *Server {
 func (s *Server) SetupTools() {
 	// Query tool
 	queryTool := mcp.NewTool("query_knowledge_graph",
-		mcp.WithDescription("Query the knowledge graph"),
+		mcp.WithDescription("Executes a Cypher query against the Neo4j graph database. Use this for complex graph traversals or queries not covered by other specific tools."),
 		mcp.WithString("query",
 			mcp.Required(),
-			mcp.Description("The GraphQL query to execute"),
+			mcp.Description("The Cypher query string to execute. Use parameter placeholders like $paramName."),
 		),
 		mcp.WithObject("params",
-			mcp.Description("Optional query parameters"),
+			mcp.Description("Optional map of parameters to bind to the Cypher query. Keys should match placeholders in the query string (without the $)."),
 		),
 	)
 	s.server.AddTool(queryTool, s.handleQueryTool)
 
 	// Document tools
 	createDocumentTool := mcp.NewTool("create_document",
-		mcp.WithDescription("Create a new document in the knowledge graph"),
+		mcp.WithDescription("Creates a new 'Document' node in the knowledge graph. Useful for storing textual information like source file contents, documentation snippets, or research notes."),
 		mcp.WithString("title",
 			mcp.Required(),
-			mcp.Description("The document title"),
+			mcp.Description("The title of the document (e.g., file name, article title)."),
 		),
 		mcp.WithString("content",
 			mcp.Required(),
-			mcp.Description("The document content"),
+			mcp.Description("The main textual content of the document."),
 		),
 		mcp.WithObject("metadata",
-			mcp.Description("Optional document metadata"),
+			mcp.Description("Optional map of key-value pairs for additional metadata (e.g., {'source_url': '...', 'author': '...'})."),
 		),
 	)
 	s.server.AddTool(createDocumentTool, s.handleCreateDocumentTool)
 
 	getDocumentTool := mcp.NewTool("get_document",
-		mcp.WithDescription("Get a document from the knowledge graph by ID"),
+		mcp.WithDescription("Retrieves a 'Document' node from the knowledge graph using its unique ID."),
 		mcp.WithString("id",
 			mcp.Required(),
-			mcp.Description("The ID of the document to retrieve"),
+			mcp.Description("The unique identifier (elementId) of the 'Document' node to retrieve."),
 		),
 	)
 	s.server.AddTool(getDocumentTool, s.handleGetDocumentTool)
 
 	searchDocumentsTool := mcp.NewTool("search_documents",
-		mcp.WithDescription("Search for documents in the knowledge graph"),
+		mcp.WithDescription("Performs a text-based search across 'Document' nodes in the knowledge graph. (Note: Specific search implementation depends on the underlying graph store)."),
 		mcp.WithString("query",
 			mcp.Required(),
-			mcp.Description("The search query"),
+			mcp.Description("The text query string to search for within document content or titles."),
 		),
 	)
 	s.server.AddTool(searchDocumentsTool, s.handleSearchDocumentsTool)
 
 	// Concept tools
 	createConceptTool := mcp.NewTool("create_concept",
-		mcp.WithDescription("Create a new concept in the knowledge graph"),
+		mcp.WithDescription("Creates a new 'Concept' node in the knowledge graph. Concepts represent abstract ideas or entities."),
 		mcp.WithString("name",
 			mcp.Required(),
-			mcp.Description("The concept name"),
+			mcp.Description("The name of the concept."),
 		),
 		mcp.WithObject("properties",
-			mcp.Description("Optional concept properties"),
+			mcp.Description("Optional map of key-value pairs for additional properties describing the concept."),
 		),
 	)
 	s.server.AddTool(createConceptTool, s.handleCreateConceptTool)
 
 	getConceptTool := mcp.NewTool("get_concept",
-		mcp.WithDescription("Get a concept from the knowledge graph by ID"),
+		mcp.WithDescription("Retrieves a 'Concept' node from the knowledge graph using its unique ID."),
 		mcp.WithString("id",
 			mcp.Required(),
-			mcp.Description("The ID of the concept to retrieve"),
+			mcp.Description("The unique identifier (elementId) of the 'Concept' node to retrieve."),
 		),
 	)
 	s.server.AddTool(getConceptTool, s.handleGetConceptTool)
 
 	linkConceptsTool := mcp.NewTool("link_concepts",
-		mcp.WithDescription("Create a relationship between two concepts"),
+		mcp.WithDescription("Creates a directed relationship between two existing 'Concept' nodes."),
 		mcp.WithString("fromId",
 			mcp.Required(),
-			mcp.Description("The ID of the source concept"),
+			mcp.Description("The unique ID (elementId) of the source 'Concept' node."),
 		),
 		mcp.WithString("toId",
 			mcp.Required(),
-			mcp.Description("The ID of the target concept"),
+			mcp.Description("The unique ID (elementId) of the target 'Concept' node."),
 		),
 		mcp.WithString("relationshipType",
 			mcp.Required(),
-			mcp.Description("The type of relationship"),
+			mcp.Description("The type of the relationship (e.g., 'RELATED_TO', 'PART_OF')."),
 		),
 		mcp.WithObject("properties",
-			mcp.Description("Optional relationship properties"),
+			mcp.Description("Optional map of key-value pairs for properties of the relationship itself."),
 		),
 	)
 	s.server.AddTool(linkConceptsTool, s.handleLinkConceptsTool)
 
-	// Legacy tools for backward compatibility
+	// Legacy tools for backward compatibility (Consider deprecating or removing if not needed)
 	createNodeTool := mcp.NewTool("create_node",
-		mcp.WithDescription("Create a new node in the knowledge graph"),
+		mcp.WithDescription("[Legacy] Creates a generic node with a specified type (label) and properties. Prefer using specific tools like 'create_document', 'create_concept', or 'find_or_create_entity'."),
 		mcp.WithString("type",
 			mcp.Required(),
-			mcp.Description("The type of node to create"),
+			mcp.Description("The primary label for the new node."),
 		),
 		mcp.WithObject("properties",
 			mcp.Required(),
-			mcp.Description("Node properties"),
+			mcp.Description("Map of key-value pairs for the node's properties."),
 		),
 	)
 	s.server.AddTool(createNodeTool, s.handleCreateNodeTool)
 
 	getNodeTool := mcp.NewTool("get_node",
-		mcp.WithDescription("Get a node from the knowledge graph by ID"),
+		mcp.WithDescription("[Legacy] Retrieves a generic node by its unique ID (elementId). Prefer using specific tools like 'get_document', 'get_concept', or 'get_entity_details'."),
 		mcp.WithString("id",
 			mcp.Required(),
-			mcp.Description("The ID of the node to retrieve"),
+			mcp.Description("The unique identifier (elementId) of the node to retrieve."),
 		),
 	)
 	s.server.AddTool(getNodeTool, s.handleGetNodeTool)
 
 	createEdgeTool := mcp.NewTool("create_edge",
-		mcp.WithDescription("Create a new edge between two nodes"),
+		mcp.WithDescription("[Legacy] Creates a directed relationship between two existing nodes identified by their IDs. Prefer using specific tools like 'link_concepts' or 'find_or_create_relationship'."),
 		mcp.WithString("fromId",
 			mcp.Required(),
-			mcp.Description("The ID of the source node"),
+			mcp.Description("The unique ID (elementId) of the source node."),
 		),
 		mcp.WithString("toId",
 			mcp.Required(),
-			mcp.Description("The ID of the target node"),
+			mcp.Description("The unique ID (elementId) of the target node."),
 		),
 		mcp.WithString("type",
 			mcp.Required(),
-			mcp.Description("The type of relationship"),
+			mcp.Description("The type name for the relationship."),
 		),
 		mcp.WithObject("properties",
-			mcp.Description("Edge properties"),
+			mcp.Description("Optional map of key-value pairs for properties of the relationship itself."),
 		),
 	)
 	s.server.AddTool(createEdgeTool, s.handleCreateEdgeTool)
 
 	schemaTool := mcp.NewTool("upsert_schema",
-		mcp.WithDescription("Update or create the graph schema"),
+		mcp.WithDescription("Applies schema definitions (like constraints and indexes) to the graph database. Accepts Cypher DDL statements."),
 		mcp.WithString("schema",
 			mcp.Required(),
-			mcp.Description("The schema definition"),
+			mcp.Description("A string containing one or more Cypher DDL statements (e.g., 'CREATE CONSTRAINT FOR (n:User) REQUIRE n.uuid IS UNIQUE;'). Statements can be separated by newlines or semicolons."),
 		),
 	)
 	s.server.AddTool(schemaTool, s.handleSchemaTool)
@@ -183,90 +183,89 @@ func (s *Server) SetupTools() {
 	// --- Software Architecture Tools ---
 
 	findOrCreateEntityTool := mcp.NewTool("find_or_create_entity",
-		mcp.WithDescription("Idempotently finds or creates a node (entity) based on identifying properties, merging provided properties."),
+		mcp.WithDescription("Idempotently finds a node (entity) based on its labels and identifying properties, or creates it if it doesn't exist. Updates properties on match. Use this to add software architecture elements like Functions, Classes, Files, etc., to the graph without creating duplicates. Automatically handles 'createdAt' and 'lastModifiedAt' timestamps."),
 		mcp.WithArray("labels",
 			mcp.Required(),
-			mcp.Description("List of labels for the entity (e.g., ['Function', 'Go']). At least one label is required."),
-			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
+			mcp.Description("List of labels for the entity (e.g., ['Function', 'Go']). Must include at least one label. Order typically doesn't matter."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithObject("identifyingProperties",
 			mcp.Required(),
-			mcp.Description("Map of properties used to uniquely identify the entity for matching (e.g., {'filePath': '/path/to/file.go', 'name': 'MyFunc'}). At least one property is required."),
+			mcp.Description("Map of properties used to uniquely identify the entity for matching (e.g., {'filePath': '/path/to/file.go', 'name': 'MyFunc'}). Must include at least one property. These properties should correspond to constraints/indexes for performance."),
 		),
 		mcp.WithObject("properties",
 			mcp.Required(),
-			mcp.Description("Map of all properties (including identifying ones) to set on create or merge on match. 'lastModifiedAt' will be automatically set/updated."),
+			mcp.Description("Map of all properties (including identifying ones and any others like 'description', 'source', 'tags', 'language', 'signature', etc.) to set on create or merge/update on match. 'lastModifiedAt' will always be updated."),
 		),
 	)
 	s.server.AddTool(findOrCreateEntityTool, s.handleFindOrCreateEntityTool)
 
 	findOrCreateRelationshipTool := mcp.NewTool("find_or_create_relationship",
-		mcp.WithDescription("Idempotently finds or creates a relationship between two nodes, merging provided properties."),
+		mcp.WithDescription("Idempotently finds or creates a directed relationship between two existing nodes (identified by labels and properties), merging provided properties on the relationship. Use this to represent connections like CALLS, DEPENDS_ON, IMPLEMENTS etc. Automatically handles 'createdAt' and 'lastModifiedAt' timestamps for the relationship."),
 		mcp.WithArray("startNodeLabels",
 			mcp.Required(),
-			mcp.Description("List of labels for the start node."),
-			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
+			mcp.Description("List of labels for the starting node of the relationship."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithObject("startNodeIdentifyingProperties",
 			mcp.Required(),
-			mcp.Description("Map of properties to uniquely identify the start node."),
+			mcp.Description("Map of properties to uniquely identify the starting node."),
 		),
 		mcp.WithArray("endNodeLabels",
 			mcp.Required(),
-			mcp.Description("List of labels for the end node."),
-			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
+			mcp.Description("List of labels for the ending node of the relationship."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithObject("endNodeIdentifyingProperties",
 			mcp.Required(),
-			mcp.Description("Map of properties to uniquely identify the end node."),
+			mcp.Description("Map of properties to uniquely identify the ending node."),
 		),
 		mcp.WithString("relationshipType",
 			mcp.Required(),
-			mcp.Description("The type of the relationship (e.g., 'CALLS', 'DEPENDS_ON')."),
+			mcp.Description("The type name for the relationship (e.g., 'CALLS', 'DEPENDS_ON'). Must be a valid Neo4j relationship type name."),
 		),
 		mcp.WithObject("properties",
-			mcp.Description("Map of properties to set on create or merge on match for the relationship. 'lastModifiedAt' will be automatically set/updated."),
+			mcp.Description("Optional map of properties to set on create or merge/update on match for the relationship itself (e.g., {'lineNumber': 123} for a CALLS relationship). 'lastModifiedAt' will always be updated."),
 		),
 	)
 	s.server.AddTool(findOrCreateRelationshipTool, s.handleFindOrCreateRelationshipTool)
 
 	getEntityDetailsTool := mcp.NewTool("get_entity_details",
-		mcp.WithDescription("Retrieves the labels and properties of a specific entity."),
+		mcp.WithDescription("Retrieves the full labels and properties of a specific entity identified by its labels and unique properties."),
 		mcp.WithArray("labels",
 			mcp.Required(),
-			mcp.Description("List of labels to identify the entity."),
-			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
+			mcp.Description("List of labels used to find the entity (e.g., ['Function'])."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithObject("identifyingProperties",
 			mcp.Required(),
-			mcp.Description("Map of properties to uniquely identify the entity."),
+			mcp.Description("Map of properties used to uniquely identify the entity (e.g., {'filePath': '/path/to/file.go', 'name': 'MyFunc'})."),
 		),
 	)
 	s.server.AddTool(getEntityDetailsTool, s.handleGetEntityDetailsTool)
 
 	findNeighborsTool := mcp.NewTool("find_neighbors",
-		mcp.WithDescription("Finds the neighbors of a specific entity up to a given depth."),
+		mcp.WithDescription("Finds the direct neighbors (nodes connected by a single relationship) of a specific entity, up to a specified depth. Returns the central node details and a list of neighbors including relationship type and direction."),
 		mcp.WithArray("labels",
 			mcp.Required(),
-			mcp.Description("List of labels for the central entity."),
-			mcp.Items(map[string]interface{}{"type": "string"}), // Corrected item schema
+			mcp.Description("List of labels for the central entity to find neighbors for."),
+			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithObject("identifyingProperties",
 			mcp.Required(),
 			mcp.Description("Map of properties to uniquely identify the central entity."),
 		),
-		mcp.WithNumber("maxDepth", // Changed from mcp.WithInteger
-			mcp.Description("Maximum depth to search for neighbors (default: 1)."),
-			// Removed mcp.Default(1) - handled in Go code
+		mcp.WithNumber("maxDepth",
+			mcp.Description("Maximum relationship path depth to search for neighbors (e.g., 1 for direct neighbors, 2 for neighbors-of-neighbors). Defaults to 1 if not provided or invalid."),
 		),
 	)
 	s.server.AddTool(findNeighborsTool, s.handleFindNeighborsTool)
 
 	findDependenciesTool := mcp.NewTool("find_dependencies",
-		mcp.WithDescription("Finds entities that the target entity depends on (outgoing relationships) up to a given depth."),
+		mcp.WithDescription("Finds entities that the target entity depends on by following outgoing relationships (e.g., A depends on B if A -> B). Allows filtering by relationship types and specifying search depth."),
 		mcp.WithArray("labels",
 			mcp.Required(),
-			mcp.Description("List of labels for the target entity."),
+			mcp.Description("List of labels for the target entity whose dependencies are being sought."),
 			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithObject("identifyingProperties",
@@ -274,20 +273,20 @@ func (s *Server) SetupTools() {
 			mcp.Description("Map of properties to uniquely identify the target entity."),
 		),
 		mcp.WithArray("relationshipTypes",
-			mcp.Description("Optional list of relationship types to follow (e.g., ['DEPENDS_ON', 'CALLS']). If empty, follows all types."),
+			mcp.Description("Optional list of specific relationship types to follow when searching for dependencies (e.g., ['DEPENDS_ON', 'CALLS']). If omitted or empty, all outgoing relationship types will be followed."),
 			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithNumber("maxDepth",
-			mcp.Description("Maximum depth to search for dependencies (default: 1)."),
+			mcp.Description("Maximum relationship path depth to search for dependencies (e.g., 1 for direct dependencies). Defaults to 1 if not provided or invalid."),
 		),
 	)
 	s.server.AddTool(findDependenciesTool, s.handleFindDependenciesTool)
 
 	findDependentsTool := mcp.NewTool("find_dependents",
-		mcp.WithDescription("Finds entities that depend on the target entity (incoming relationships) up to a given depth."),
+		mcp.WithDescription("Finds entities that depend on the target entity by following incoming relationships (e.g., B depends on A if B -> A). Allows filtering by relationship types and specifying search depth. Useful for impact analysis."),
 		mcp.WithArray("labels",
 			mcp.Required(),
-			mcp.Description("List of labels for the target entity."),
+			mcp.Description("List of labels for the target entity whose dependents are being sought."),
 			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithObject("identifyingProperties",
@@ -295,20 +294,20 @@ func (s *Server) SetupTools() {
 			mcp.Description("Map of properties to uniquely identify the target entity."),
 		),
 		mcp.WithArray("relationshipTypes",
-			mcp.Description("Optional list of relationship types to follow (e.g., ['DEPENDS_ON', 'CALLS']). If empty, follows all types."),
+			mcp.Description("Optional list of specific relationship types to follow when searching for dependents (e.g., ['DEPENDS_ON', 'CALLS']). If omitted or empty, all incoming relationship types will be followed."),
 			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithNumber("maxDepth",
-			mcp.Description("Maximum depth to search for dependents (default: 1)."),
+			mcp.Description("Maximum relationship path depth to search for dependents (e.g., 1 for direct dependents). Defaults to 1 if not provided or invalid."),
 		),
 	)
 	s.server.AddTool(findDependentsTool, s.handleFindDependentsTool)
 
 	getEntitySubgraphTool := mcp.NewTool("get_entity_subgraph",
-		mcp.WithDescription("Retrieves nodes and relationships around a central entity, suitable for visualisation."),
+		mcp.WithDescription("Retrieves a subgraph containing nodes and relationships within a specified depth around a central entity. The result format is designed for easy conversion into visualisation formats like Mermaid diagrams. Requires the APOC plugin to be installed on the Neo4j server."),
 		mcp.WithArray("labels",
 			mcp.Required(),
-			mcp.Description("List of labels for the central entity."),
+			mcp.Description("List of labels for the central entity of the subgraph."),
 			mcp.Items(map[string]interface{}{"type": "string"}),
 		),
 		mcp.WithObject("identifyingProperties",
@@ -316,7 +315,7 @@ func (s *Server) SetupTools() {
 			mcp.Description("Map of properties to uniquely identify the central entity."),
 		),
 		mcp.WithNumber("maxDepth",
-			mcp.Description("Maximum depth to retrieve the subgraph (default: 1)."),
+			mcp.Description("Maximum relationship path depth to include in the subgraph (e.g., 1 for direct neighbors, 2 includes neighbors-of-neighbors). Defaults to 1 if not provided or invalid."),
 		),
 	)
 	s.server.AddTool(getEntitySubgraphTool, s.handleGetEntitySubgraphTool)
