@@ -1,4 +1,5 @@
 # Binaries for programs and plugins
+
 *.exe
 *.exe~
 *.dll
@@ -35,3 +36,6 @@ bin/
 
 # Log files
 *.log
+
+**/dgraph_data
+t

@@ -44,6 +44,7 @@ type ShutdownConfig struct {
 }
 
 // LoadConfig loads the configuration from a file and environment variables
+// If the config file doesn't exist, it creates one with default values
 func LoadConfig(configPath string) (*Config, error) {
 	v := viper.New()
 
@@ -54,8 +55,31 @@ func LoadConfig(configPath string) (*Config, error) {
 	if configPath != "" {
 		v.SetConfigFile(configPath)
 		if err := v.ReadInConfig(); err != nil {
-			// It's okay if config file doesn't exist
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			// If config file doesn't exist, create it with default values
+			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+				fmt.Printf("Config file %s not found, creating with default values\n", configPath)
+
+				// Create a new viper instance for writing the config file
+				// This is necessary because the original viper instance might not have the config type set
+				configViper := viper.New()
+				setDefaults(configViper)
+
+				// Set the config file format based on the file extension
+				ext := getFileExtension(configPath)
+				configViper.SetConfigType(ext)
+
+				// Write the config file
+				if err := configViper.WriteConfigAs(configPath); err != nil {
+					fmt.Printf("Warning: Failed to create config file: %v\n", err)
+					// Continue with default values even if we couldn't create the file
+				} else {
+					fmt.Printf("Created config file %s with default values\n", configPath)
+					// Re-read the config file we just created
+					if err := v.ReadInConfig(); err != nil {
+						fmt.Printf("Warning: Failed to read newly created config file: %v\n", err)
+					}
+				}
+			} else {
 				return nil, fmt.Errorf("error reading config file: %w", err)
 			}
 		}
@@ -100,4 +124,15 @@ func SaveConfigExample(path string) error {
 	setDefaults(v)
 
 	return v.WriteConfigAs(path)
+}
+
+// getFileExtension returns the file extension without the dot
+// e.g. "config.yaml" -> "yaml"
+func getFileExtension(path string) string {
+	for i := len(path) - 1; i >= 0; i-- {
+		if path[i] == '.' {
+			return path[i+1:]
+		}
+	}
+	return "yaml" // Default to yaml if no extension found
 }

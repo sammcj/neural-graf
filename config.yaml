@@ -1,0 +1,21 @@
+# Application settings
+app:
+  name: MCP-Graph
+  version: 0.1.0
+
+# API settings
+api:
+  port: 8080
+
+# Dgraph settings
+dgraph:
+  address: localhost:9080
+
+# MCP settings
+mcp:
+  useSSE: true
+  address: :3000
+
+# Shutdown settings
+shutdown:
+  timeout: 5s

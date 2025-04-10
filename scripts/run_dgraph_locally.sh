@@ -33,6 +33,43 @@ check_dgraph_installed() {
     fi
 }
 
+# Check if a port is in use
+check_port_in_use() {
+    local port=$1
+    if lsof -i :$port -sTCP:LISTEN -t >/dev/null ; then
+        return 0  # Port is in use
+    else
+        return 1  # Port is free
+    fi
+}
+
+# Check if DGraph ports are available
+check_dgraph_ports() {
+    local ports=(5080 6080 7080 8080 9080)
+    local port_names=("DGraph Zero internal" "DGraph Zero external" "DGraph Alpha internal" "DGraph Alpha HTTP API" "DGraph Alpha gRPC API")
+    local has_conflict=false
+
+    print_info "Checking if DGraph ports are available..."
+
+    for i in "${!ports[@]}"; do
+        if check_port_in_use ${ports[$i]}; then
+            print_error "Port ${ports[$i]} (${port_names[$i]}) is already in use."
+            has_conflict=true
+        fi
+    done
+
+    if $has_conflict; then
+        print_error "Some DGraph ports are already in use. Please stop any running DGraph instances or other services using these ports."
+        print_info "You can use the following command to check what's using the ports:"
+        print_info "  lsof -i :5080,6080,7080,8080,9080"
+        print_info "And to stop existing DGraph processes:"
+        print_info "  ./scripts/run_dgraph_locally.sh stop"
+        exit 1
+    fi
+
+    print_info "All DGraph ports are available."
+}
+
 # Create directories for DGraph data
 create_directories() {
     print_info "Creating directories for DGraph data..."
@@ -44,13 +81,22 @@ create_directories() {
 # Start DGraph Zero
 start_dgraph_zero() {
     print_info "Starting DGraph Zero..."
-    dgraph zero --my=localhost:5080 --wal=dgraph_data/zero/wal --zero=localhost:5080 &
+    dgraph zero --my=localhost:5080 --wal=dgraph_data/zero/wal &
     ZERO_PID=$!
-    echo $ZERO_PID > dgraph_data/zero.pid
+    echo $ZERO_PID >dgraph_data/zero.pid
     print_info "DGraph Zero started with PID: $ZERO_PID"
 
-    # Wait for Zero to start
-    sleep 5
+    # Wait for Zero to start and initialize
+    print_info "Waiting for DGraph Zero to initialize..."
+    sleep 10
+
+    # Check if Zero is running
+    if ! ps -p $ZERO_PID >/dev/null; then
+        print_error "DGraph Zero failed to start. Check the logs for errors."
+        exit 1
+    fi
+
+    print_info "DGraph Zero initialized"
 }
 
 # Start DGraph Alpha
@@ -61,17 +107,48 @@ start_dgraph_alpha() {
     echo $ALPHA_PID > dgraph_data/alpha.pid
     print_info "DGraph Alpha started with PID: $ALPHA_PID"
 
-    # Wait for Alpha to start
-    sleep 5
+    # Wait for Alpha to start and initialize
+    print_info "Waiting for DGraph Alpha to initialize..."
+    sleep 10
+
+    # Check if Alpha is running
+    if ! ps -p $ALPHA_PID > /dev/null; then
+        print_error "DGraph Alpha failed to start. Check the logs for errors."
+        exit 1
+    fi
+
+    # Check if Alpha is accessible
+    print_info "Checking if DGraph Alpha is accessible..."
+    MAX_RETRIES=5
+    RETRY_COUNT=0
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/health | grep -q "200"; then
+            print_info "DGraph Alpha is accessible"
+            break
+        else
+            RETRY_COUNT=$((RETRY_COUNT+1))
+            if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                print_warning "DGraph Alpha is not responding, but process is running. Continuing anyway..."
+            else
+                print_info "Waiting for DGraph Alpha to become accessible (attempt $RETRY_COUNT/$MAX_RETRIES)..."
+                sleep 2
+            fi
+        fi
+    done
 }
 
 # Start DGraph Ratel (UI)
 start_dgraph_ratel() {
     print_info "Starting DGraph Ratel (UI)..."
-    dgraph-ratel &
-    RATEL_PID=$!
-    echo $RATEL_PID > dgraph_data/ratel.pid
-    print_info "DGraph Ratel started with PID: $RATEL_PID"
+    if command -v dgraph-ratel &> /dev/null; then
+        dgraph-ratel &
+        RATEL_PID=$!
+        echo $RATEL_PID > dgraph_data/ratel.pid
+        print_info "DGraph Ratel started with PID: $RATEL_PID"
+    else
+        print_warning "DGraph Ratel not found. Skipping Ratel UI startup."
+        print_info "You can still access DGraph Alpha HTTP API at http://localhost:8080"
+    fi
 }
 
 # Stop DGraph processes
@@ -159,6 +236,7 @@ main() {
     case "$1" in
         start)
             check_dgraph_installed
+            check_dgraph_ports
             create_directories
             start_dgraph_zero
             start_dgraph_alpha
@@ -168,16 +246,17 @@ main() {
         stop)
             stop_dgraph
             ;;
-        restart)
-            stop_dgraph
-            sleep 2
-            check_dgraph_installed
-            create_directories
-            start_dgraph_zero
-            start_dgraph_alpha
-            start_dgraph_ratel
-            show_status
-            ;;
+    restart)
+        stop_dgraph
+        sleep 2
+        check_dgraph_installed
+        check_dgraph_ports
+        create_directories
+        start_dgraph_zero
+        start_dgraph_alpha
+        start_dgraph_ratel
+        show_status
+        ;;
         status)
             show_status
             ;;

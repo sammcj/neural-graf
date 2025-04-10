@@ -44,7 +44,9 @@ To start all DGraph components:
 This will:
 1. Start DGraph Zero (cluster manager)
 2. Start DGraph Alpha (database server)
-3. Start DGraph Ratel (UI)
+3. Start DGraph Ratel (UI) if available
+
+Note: The Ratel UI component is optional. If it's not installed, the script will still run DGraph Zero and Alpha, which are the essential components.
 
 #### Checking Status
 
@@ -90,12 +92,14 @@ export MCPGRAPH_DGRAPH_ADDRESS=localhost:9080
 
 ### Using Config File
 
-Create or modify your `config.yaml` file:
+The application will automatically create a `config.yaml` file with default values if it doesn't exist. You can also create or modify it manually:
 
 ```yaml
 dgraph:
   address: localhost:9080
 ```
+
+The default configuration includes settings for the application name, API port, DGraph address, MCP server, and shutdown timeout.
 
 ## Running MCP-Graph
 
@@ -134,13 +138,25 @@ The script creates a `dgraph_data` directory in the current working directory to
 
 ### Port Conflicts
 
-If you encounter port conflicts, ensure that no other services are using the following ports:
+The script automatically checks for port conflicts before starting DGraph and will provide helpful error messages if any ports are already in use.
+
+DGraph requires the following ports to be available:
 - 5080: DGraph Zero internal port
 - 6080: DGraph Zero external port
 - 7080: DGraph Alpha internal port
 - 8080: DGraph Alpha HTTP API
 - 9080: DGraph Alpha gRPC API
 - 8000: DGraph Ratel UI
+
+If you encounter port conflicts, you can use the following command to see what processes are using the ports:
+```bash
+lsof -i :5080,6080,7080,8080,9080
+```
+
+And to stop any existing DGraph processes:
+```bash
+./scripts/run_dgraph_locally.sh stop
+```
 
 ### Process Management
 

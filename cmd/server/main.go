@@ -59,6 +59,17 @@ func main() {
 	configPath := flag.String("config", "config.yaml", "Path to configuration file")
 	flag.Parse()
 
+	// Check if config file exists, create it if it doesn't
+	if _, err := os.Stat(*configPath); os.IsNotExist(err) {
+		log.Printf("Config file %s not found, creating with default values", *configPath)
+		if err := createDefaultConfig(*configPath); err != nil {
+			log.Printf("Warning: Failed to create config file: %v", err)
+			// Continue with default values even if we couldn't create the file
+		} else {
+			log.Printf("Created config file %s with default values", *configPath)
+		}
+	}
+
 	// Load configuration
 	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
@@ -165,4 +176,33 @@ func main() {
 	}
 
 	logger.Println("Shutdown complete")
+}
+
+// createDefaultConfig creates a default config file at the specified path
+func createDefaultConfig(path string) error {
+	// Create a basic config file with default values
+	configContent := `# Application settings
+app:
+  name: MCP-Graph
+  version: 0.1.0
+
+# API settings
+api:
+  port: 8080
+
+# Dgraph settings
+dgraph:
+  address: localhost:9080
+
+# MCP settings
+mcp:
+  useSSE: true
+  address: :3000
+
+# Shutdown settings
+shutdown:
+  timeout: 5s
+`
+	// Create the file
+	return os.WriteFile(path, []byte(configContent), 0644)
 }
