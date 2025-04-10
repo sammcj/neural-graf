@@ -7,58 +7,23 @@ import (
 
 // InitialiseSchema sets up the initial schema for the knowledge graph
 func (s *Service) InitialiseSchema(ctx context.Context) error {
-	// Define schema for Dgraph
+	// Define schema for Neo4j/Memgraph using Cypher syntax
 	schema := `
-		# Node type predicate
-		type: string @index(exact) .
+		// Create indexes for node properties
+		CREATE INDEX FOR (d:Document) ON (d.title);
+		CREATE INDEX FOR (d:Document) ON (d.type);
+		CREATE INDEX FOR (c:Concept) ON (c.name);
+		CREATE INDEX FOR (c:Concept) ON (c.type);
+		CREATE INDEX FOR (e:Entity) ON (e.name);
+		CREATE INDEX FOR (e:Entity) ON (e.type);
+		CREATE INDEX FOR (ev:Event) ON (ev.name);
+		CREATE INDEX FOR (ev:Event) ON (ev.type);
 
-		# Document predicates
-		title: string @index(fulltext, term) .
-		content: string @index(fulltext) .
-		metadata: json .
-
-		# Concept predicates
-		name: string @index(fulltext, term) .
-
-		# Edge predicates
-		RELATED_TO: uid @reverse .
-		CONTAINS: uid @reverse .
-		REFERENCES_TO: uid @reverse .
-		CREATED_BY: uid @reverse .
-		HAS_PROPERTY: uid @reverse .
-
-		# Define types
-		type Document {
-			type
-			title
-			content
-			metadata
-			CONTAINS
-			REFERENCES_TO
-			CREATED_BY
-		}
-
-		type Concept {
-			type
-			name
-			RELATED_TO
-			HAS_PROPERTY
-		}
-
-		type Entity {
-			type
-			name
-			properties
-			RELATED_TO
-		}
-
-		type Event {
-			type
-			name
-			date
-			description
-			RELATED_TO
-		}
+		// Create constraints for unique IDs
+		CREATE CONSTRAINT FOR (d:Document) REQUIRE d.id IS UNIQUE;
+		CREATE CONSTRAINT FOR (c:Concept) REQUIRE c.id IS UNIQUE;
+		CREATE CONSTRAINT FOR (e:Entity) REQUIRE e.id IS UNIQUE;
+		CREATE CONSTRAINT FOR (ev:Event) REQUIRE ev.id IS UNIQUE;
 	`
 
 	// Upsert schema

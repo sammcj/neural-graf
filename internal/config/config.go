@@ -11,7 +11,7 @@ import (
 type Config struct {
 	App      AppConfig      `mapstructure:"app"`
 	API      APIConfig      `mapstructure:"api"`
-	Dgraph   DgraphConfig   `mapstructure:"dgraph"`
+	Neo4j    Neo4jConfig    `mapstructure:"neo4j"`
 	MCP      MCPConfig      `mapstructure:"mcp"`
 	Shutdown ShutdownConfig `mapstructure:"shutdown"`
 }
@@ -27,9 +27,11 @@ type APIConfig struct {
 	Port int `mapstructure:"port"`
 }
 
-// DgraphConfig contains Dgraph connection settings
-type DgraphConfig struct {
-	Address string `mapstructure:"address"`
+// Neo4jConfig contains Neo4j connection settings
+type Neo4jConfig struct {
+	URI      string `mapstructure:"uri"`
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
 }
 
 // MCPConfig contains MCP server settings
@@ -107,8 +109,10 @@ func setDefaults(v *viper.Viper) {
 	// API defaults
 	v.SetDefault("api.port", 8080)
 
-	// Dgraph defaults
-	v.SetDefault("dgraph.address", "localhost:9080")
+	// Neo4j defaults
+	v.SetDefault("neo4j.uri", "bolt://localhost:7687")
+	v.SetDefault("neo4j.username", "")
+	v.SetDefault("neo4j.password", "")
 
 	// MCP defaults
 	v.SetDefault("mcp.useSSE", true)

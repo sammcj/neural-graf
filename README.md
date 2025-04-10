@@ -1,12 +1,12 @@
 # MCP-Graph
 
-A lightweight, self-hosted knowledge graph system built in Go with Dgraph integration and MCP server support.
+A lightweight, self-hosted knowledge graph system built in Go with Neo4j/Memgraph integration and MCP server support.
 
 ## Overview
 
-MCP-Graph is a modular knowledge graph system that provides efficient data ingestion, graph-based storage, and powerful querying capabilities using Dgraph as the primary database. The system includes the following key components:
+MCP-Graph is a modular knowledge graph system that provides efficient data ingestion, graph-based storage, and powerful querying capabilities using Neo4j/Memgraph as the primary database. The system includes the following key components:
 
-- **Knowledge Graph**: Core graph database functionality using Dgraph
+- **Knowledge Graph**: Core graph database functionality using Neo4j/Memgraph
 - **MCP Server**: Deployed as a Model Context Protocol server (using mark3labs/mcp-go) to provide standardised LLM tool interfaces
 
 ## Features
@@ -29,7 +29,7 @@ mcp-graph/
 │   ├── api/                    # API handlers
 │   ├── config/                 # Configuration management
 │   ├── graph/                  # Knowledge graph implementation
-│   │   └── dgraph/             # Dgraph implementation
+│   │   └── neo4j/              # Neo4j/Memgraph implementation
 │   ├── mcp/                    # MCP server
 │   └── service/                # Core business logic
 ├── pkg/
@@ -43,7 +43,7 @@ mcp-graph/
 ### Prerequisites
 
 - Go 1.21 or higher
-- Dgraph (can be run via Docker)
+- Neo4j or Memgraph (can be run via Docker)
 
 ### Installation
 
@@ -58,12 +58,15 @@ mcp-graph/
    go build -o bin/mcp-graph ./cmd/server
    ```
 
-3. Run with Docker Compose (includes Dgraph):
+3. Run with Docker Compose (includes Memgraph):
    ```bash
    docker-compose up -d
    ```
 
-   Alternatively, for macOS users with Colima who experience issues with Docker Compose, see [Running Without Docker Compose](docs/running_without_docker_compose.md).
+   Alternatively, for users who want to run Memgraph directly on their machine:
+   ```bash
+   ./scripts/run_with_local_memgraph.sh
+   ```
 
 ## Configuration
 

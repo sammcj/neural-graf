@@ -14,7 +14,7 @@ import (
 
 	"github.com/sammcj/mcp-graph/internal/api"
 	"github.com/sammcj/mcp-graph/internal/config"
-	"github.com/sammcj/mcp-graph/internal/graph/dgraph"
+	"github.com/sammcj/mcp-graph/internal/graph/neo4j"
 	"github.com/sammcj/mcp-graph/internal/mcp"
 	"github.com/sammcj/mcp-graph/internal/service"
 )
@@ -80,10 +80,11 @@ func main() {
 	logger := newConditionalLogger(cfg.MCP.UseSSE)
 
 	// Initialize graph store
-	graphStore, err := dgraph.NewDgraphStore(cfg.Dgraph.Address)
+	graphStore, err := neo4j.NewNeo4jStore(cfg.Neo4j.URI, cfg.Neo4j.Username, cfg.Neo4j.Password)
 	if err != nil {
-		log.Fatalf("Failed to connect to Dgraph: %v", err)
+		log.Fatalf("Failed to connect to Neo4j: %v", err)
 	}
+	defer graphStore.Close(context.Background())
 
 	// Create knowledge manager service
 	knowledgeService := service.NewService(graphStore)
@@ -190,9 +191,11 @@ app:
 api:
   port: 8080
 
-# Dgraph settings
-dgraph:
-  address: localhost:9080
+# Neo4j settings
+neo4j:
+  uri: bolt://localhost:7687
+  username: ""
+  password: ""
 
 # MCP settings
 mcp:

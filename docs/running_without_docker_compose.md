@@ -1,93 +1,94 @@
 # Running MCP-Graph Without Docker Compose
 
-This guide provides instructions for running MCP-Graph without Docker Compose, which is particularly useful for macOS users who use Colima and experience issues with Docker Compose.
+This guide provides instructions for running MCP-Graph without Docker Compose, which is particularly useful for users who want to run Memgraph directly on their machine.
 
 ## Prerequisites
 
 - Go 1.21 or higher
-- DGraph installed locally (see instructions below)
+- Memgraph installed locally (see instructions below)
 
-## Installing DGraph Locally
+## Installing Memgraph Locally
 
-You can install DGraph directly on your system using the official installer:
+You can install Memgraph directly on your system:
+
+### macOS
 
 ```bash
-curl -s https://get.dgraph.io | bash
+brew install memgraph/memgraph/memgraph
 ```
 
-This will install the DGraph binaries (`dgraph` and `dgraph-ratel`) on your system.
+### Linux
 
-## Using the Local DGraph Script
+Follow the instructions at https://memgraph.com/docs/memgraph/installation
 
-We've provided a script to help you run DGraph locally without Docker Compose. The script manages the DGraph Zero, Alpha, and Ratel components.
+## Using the Local Memgraph Script
+
+We've provided a script to help you run Memgraph locally without Docker Compose.
 
 ### Script Location
 
-The script is located at `scripts/run_dgraph_locally.sh` in the project directory.
+The script is located at `scripts/run_memgraph_locally.sh` in the project directory.
 
 ### Script Usage
 
 Make the script executable:
 
 ```bash
-chmod +x scripts/run_dgraph_locally.sh
+chmod +x scripts/run_memgraph_locally.sh
 ```
 
-#### Starting DGraph
+#### Starting Memgraph
 
-To start all DGraph components:
+To start Memgraph:
 
 ```bash
-./scripts/run_dgraph_locally.sh start
+./scripts/run_memgraph_locally.sh start
 ```
 
-This will:
-1. Start DGraph Zero (cluster manager)
-2. Start DGraph Alpha (database server)
-3. Start DGraph Ratel (UI) if available
-
-Note: The Ratel UI component is optional. If it's not installed, the script will still run DGraph Zero and Alpha, which are the essential components.
+This will start Memgraph with the Bolt protocol enabled.
 
 #### Checking Status
 
-To check the status of DGraph components:
+To check the status of Memgraph:
 
 ```bash
-./scripts/run_dgraph_locally.sh status
+./scripts/run_memgraph_locally.sh status
 ```
 
-#### Stopping DGraph
+#### Stopping Memgraph
 
-To stop all DGraph components:
+To stop Memgraph:
 
 ```bash
-./scripts/run_dgraph_locally.sh stop
+./scripts/run_memgraph_locally.sh stop
 ```
 
-#### Restarting DGraph
+#### Restarting Memgraph
 
-To restart all DGraph components:
+To restart Memgraph:
 
 ```bash
-./scripts/run_dgraph_locally.sh restart
+./scripts/run_memgraph_locally.sh restart
 ```
 
-### Accessing DGraph
+### Accessing Memgraph
 
 Once started, you can access:
 
-- DGraph Alpha HTTP API: http://localhost:8080
-- DGraph Alpha gRPC API: localhost:9080
-- DGraph Ratel UI: http://localhost:8000
+- Memgraph Bolt protocol: localhost:7687
+- Memgraph HTTP API: http://localhost:7444
+- Memgraph Lab UI: http://localhost:3000
 
-## Configuring MCP-Graph to Use Local DGraph
+## Configuring MCP-Graph to Use Local Memgraph
 
-To configure MCP-Graph to use your locally running DGraph instance, you need to set the DGraph address in your configuration.
+To configure MCP-Graph to use your locally running Memgraph instance, you need to set the Neo4j connection parameters in your configuration.
 
 ### Using Environment Variables
 
 ```bash
-export MCPGRAPH_DGRAPH_ADDRESS=localhost:9080
+export MCPGRAPH_NEO4J_URI=bolt://localhost:7687
+export MCPGRAPH_NEO4J_USERNAME=
+export MCPGRAPH_NEO4J_PASSWORD=
 ```
 
 ### Using Config File
@@ -95,26 +96,28 @@ export MCPGRAPH_DGRAPH_ADDRESS=localhost:9080
 The application will automatically create a `config.yaml` file with default values if it doesn't exist. You can also create or modify it manually:
 
 ```yaml
-dgraph:
-  address: localhost:9080
+neo4j:
+  uri: bolt://localhost:7687
+  username: ""
+  password: ""
 ```
 
-The default configuration includes settings for the application name, API port, DGraph address, MCP server, and shutdown timeout.
+The default configuration includes settings for the application name, API port, Neo4j connection parameters, MCP server, and shutdown timeout.
 
 ## Running MCP-Graph
 
-After starting DGraph locally and configuring MCP-Graph, you can run the application:
+After starting Memgraph locally and configuring MCP-Graph, you can run the application:
 
 ### Option 1: Using the Convenience Script
 
-We've provided a convenience script that will check if DGraph is running, start it if needed, and then run MCP-Graph with the correct configuration:
+We've provided a convenience script that will check if Memgraph is running, start it if needed, and then run MCP-Graph with the correct configuration:
 
 ```bash
-./scripts/run_with_local_dgraph.sh
+./scripts/run_with_local_memgraph.sh
 ```
 
 This script:
-1. Checks if DGraph is running, and starts it if not
+1. Checks if Memgraph is running, and starts it if not
 2. Sets the necessary environment variables
 3. Runs the MCP-Graph application
 
@@ -123,8 +126,10 @@ This script:
 If you prefer to set things up manually:
 
 ```bash
-# Set the DGraph address environment variable
-export MCPGRAPH_DGRAPH_ADDRESS=localhost:9080
+# Set the Neo4j connection environment variables
+export MCPGRAPH_NEO4J_URI=bolt://localhost:7687
+export MCPGRAPH_NEO4J_USERNAME=
+export MCPGRAPH_NEO4J_PASSWORD=
 
 # Run the application
 go run cmd/server/main.go
@@ -132,45 +137,42 @@ go run cmd/server/main.go
 
 ## Data Persistence
 
-The script creates a `dgraph_data` directory in the current working directory to store DGraph data. This ensures your data persists between restarts.
+The script creates a `memgraph_data` directory in the current working directory to store Memgraph data. This ensures your data persists between restarts.
 
 ## Troubleshooting
 
 ### Port Conflicts
 
-The script automatically checks for port conflicts before starting DGraph and will provide helpful error messages if any ports are already in use.
+The script automatically checks for port conflicts before starting Memgraph and will provide helpful error messages if any ports are already in use.
 
-DGraph requires the following ports to be available:
-- 5080: DGraph Zero internal port
-- 6080: DGraph Zero external port
-- 7080: DGraph Alpha internal port
-- 8080: DGraph Alpha HTTP API
-- 9080: DGraph Alpha gRPC API
-- 8000: DGraph Ratel UI
+Memgraph requires the following ports to be available:
+- 7687: Memgraph Bolt protocol
+- 7444: Memgraph HTTP API
+- 3000: Memgraph Lab UI
 
 If you encounter port conflicts, you can use the following command to see what processes are using the ports:
 ```bash
-lsof -i :5080,6080,7080,8080,9080
+lsof -i :7687,7444,3000
 ```
 
-And to stop any existing DGraph processes:
+And to stop any existing Memgraph processes:
 ```bash
-./scripts/run_dgraph_locally.sh stop
+./scripts/run_memgraph_locally.sh stop
 ```
 
 ### Process Management
 
-The script manages processes using PID files stored in the `dgraph_data` directory. If you encounter issues with processes not being properly tracked, you can manually check for and kill DGraph processes:
+The script manages processes using PID files stored in the `memgraph_data` directory. If you encounter issues with processes not being properly tracked, you can manually check for and kill Memgraph processes:
 
 ```bash
-ps aux | grep dgraph
+ps aux | grep memgraph
 kill <PID>
 ```
 
 ### Logs
 
-DGraph logs are output to the console. If you want to save logs, you can redirect the output when starting:
+Memgraph logs are output to the console. If you want to save logs, you can redirect the output when starting:
 
 ```bash
-./scripts/run_dgraph_locally.sh start > dgraph_logs.txt 2>&1
+./scripts/run_memgraph_locally.sh start > memgraph_logs.txt 2>&1
 ```

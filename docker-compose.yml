@@ -7,52 +7,34 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - MCPGRAPH_DGRAPH_ADDRESS=dgraph-alpha:9080
+      - MCPGRAPH_NEO4J_URI=bolt://memgraph:7687
+      - MCPGRAPH_NEO4J_USERNAME=
+      - MCPGRAPH_NEO4J_PASSWORD=
       - MCPGRAPH_MCP_USESSE=true
       - MCPGRAPH_MCP_ADDRESS=:3000
     depends_on:
-      - dgraph-alpha
-    restart: unless-stopped
-    networks:
-      - mcp-graph-network
-  # Dgraph Alpha - Database Server
-  dgraph-alpha:
-    image: dgraph/dgraph:latest
-    ports:
-      - "8080:8080"  # HTTP API
-      - "9080:9080"  # gRPC API
-    volumes:
-      - dgraph-data:/dgraph
-    command: dgraph alpha --my=dgraph-alpha:7080 --zero=dgraph-zero:5080 --security whitelist=0.0.0.0/0
+      - memgraph
     restart: unless-stopped
     networks:
       - mcp-graph-network
 
-  # Dgraph Zero - Cluster Manager
-  dgraph-zero:
-    image: dgraph/dgraph:latest
+  # Memgraph - Graph Database
+  memgraph:
+    image: memgraph/memgraph:latest
     ports:
-      - "5080:5080"  # Zero internal port
-      - "6080:6080"  # Zero external port
+      - "7687:7687"  # Bolt protocol
+      - "7444:7444"  # HTTP API
+      - "3000:3000"  # Memgraph Lab UI
     volumes:
-      - dgraph-zero-data:/dgraph
-    command: dgraph zero --my=dgraph-zero:5080
-    restart: unless-stopped
-    networks:
-      - mcp-graph-network
-
-  # Dgraph Ratel - UI
-  dgraph-ratel:
-    image: dgraph/ratel:latest
-    ports:
-      - "8000:8000"  # UI
+      - memgraph-data:/var/lib/memgraph
+    environment:
+      - MEMGRAPH_STORAGE_MODE=PERSISTENT
     restart: unless-stopped
     networks:
       - mcp-graph-network
 
 volumes:
-  dgraph-data:
-  dgraph-zero-data:
+  memgraph-data:
 
 networks:
   mcp-graph-network:

@@ -7,9 +7,11 @@ app:
 api:
   port: 8080
 
-# Dgraph settings
-dgraph:
-  address: localhost:9080
+# Neo4j settings
+neo4j:
+  uri: bolt://localhost:7687
+  username: "neo4j"
+  password: "abcabcabc"
 
 # MCP settings
 mcp:
