@@ -148,24 +148,24 @@ This agent-driven approach leverages the agent's analytical capabilities while p
 
 ## 5. Implementation Plan & Next Steps
 
-1.  **Phase 1 (Core Functionality - Agent-Driven):**
-    *   Implement the defined Neo4j schema (node labels, properties, relationship types). This might initially involve manual Cypher scripts or potentially integrating schema setup into the server's startup sequence.
-    *   Create required Neo4j indexes for performance (e.g., on identifying properties). Document the specific `CREATE INDEX` commands needed.
-    *   Implement the prioritised MCP Tools using `mcp-go`:
-        *   `find_or_create_entity` (handling updates)
-        *   `find_or_create_relationship` (handling updates)
-        *   `get_entity_details`
-        *   `find_neighbors`
-    *   Ensure high-quality tool descriptions and input schemas.
-    *   Implement robust error handling within tools.
-    *   Document the expected agent-driven workflow.
-    *   Implement a basic stale-marking mechanism. For Phase 1, this could involve the agent querying for potentially stale nodes within the analysed scope (based on `filePath` and `lastModifiedAt`) and then calling `find_or_create_entity` again for those nodes, specifically setting the `status` property to 'stale' or 'deprecated' in the `update_properties`. A dedicated server-side tool is a Phase 2 refinement.
-2.  **Phase 2 (Enhancements):**
-    *   Implement more advanced query tools (`find_dependencies`, `find_dependents`).
-    *   Implement a visualisation helper tool (`get_entity_subgraph`) that returns structured node/relationship data for a given entity and depth, enabling agents to generate diagrams (e.g., Mermaid).
-    *   Implement MCP Prompts for common query/analysis patterns (Query Templates).
-    *   Optionally implement server-side analysis (`analyse_codebase`) if needed for bulk ingestion performance, addressing multi-language parsing challenges.
-    *   Optionally implement MCP Resources for user-controlled views/reports.
+1.  **Phase 1 (Core Functionality - Agent-Driven):** `[COMPLETED]`
+    *   `[x]` Implement the defined Neo4j schema (node labels, properties, relationship types) via Go structs (`internal/graph/schema.go`).
+    *   `[x]` Create required Neo4j indexes for performance (e.g., on identifying properties). Documented in `docs/project-implementation.md`.
+    *   `[x]` Implement the prioritised MCP Tools using `mcp-go` (`internal/mcp/server.go`) and corresponding `graph.Store` methods (`internal/graph/neo4j/store.go`):
+        *   `[x]` `find_or_create_entity` (handling updates)
+        *   `[x]` `find_or_create_relationship` (handling updates)
+        *   `[x]` `get_entity_details`
+        *   `[x]` `find_neighbors`
+    *   `[x]` Ensure high-quality tool descriptions and input schemas in `internal/mcp/server.go`.
+    *   `[x]` Implement robust error handling within tools (basic argument validation and graph error propagation).
+    *   `[x]` Document the expected agent-driven workflow (in this document).
+    *   `[ ]` Implement a basic stale-marking mechanism. _(Deferred - Requires agent-side logic or a dedicated server tool as noted)_
+2.  **Phase 2 (Enhancements):** `[IN PROGRESS]`
+    *   `[x]` Implement more advanced query tools (`find_dependencies`, `find_dependents`).
+    *   `[x]` Implement a visualisation helper tool (`get_entity_subgraph`) that returns structured node/relationship data for a given entity and depth, enabling agents to generate diagrams (e.g., Mermaid).
+    *   `[ ]` Implement MCP Prompts for common query/analysis patterns (Query Templates).
+    *   `[ ]` Optionally implement server-side analysis (`analyse_codebase`) if needed for bulk ingestion performance, addressing multi-language parsing challenges.
+    *   `[ ]` Optionally implement MCP Resources for user-controlled views/reports.
     *   Refine stale data handling (e.g., dedicated tool, advanced pruning).
     *   Extend schema to include additional elements (e.g., Events, API Contracts, IaC).
     *   Investigate advanced concurrency control if needed.
