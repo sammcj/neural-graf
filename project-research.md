@@ -82,11 +82,19 @@ This document summarises the research, goals, and planning for extending the `mc
         *   Basic Querying: Tools like `get_entity_details` and `find_neighbors` for exploration.
         *   Future Tools: More advanced queries like `find_dependencies`, `find_dependents`, `visualise_component`.
         These tools need clear input schemas (using `mcp-go` helpers) and return structured results or errors appropriately (`isError: true`).
+    *   **Tool Discovery & Usage:** Agents learn how to use these tools via the standard MCP `tools/list` mechanism. The server provides the tool `name`, `description`, and `inputSchema`. **Crucially, the quality and clarity of the tool and parameter descriptions are paramount** for enabling the agent to understand when and how to use the tools effectively.
     *   **Resources:** Can be used optionally to expose specific graph views or reports for user-controlled context (e.g., a diagram for a specific service).
     *   **Prompts:** Can be used optionally to define user-initiated analysis workflows (e.g., `/summarise_component`).
     *   **Sampling:** A potential future enhancement for server-side LLM analysis, but likely deferred due to current client/library support.
 *   **`mcp-go` Library:** Implementation should follow the patterns established by `mcp-go` for defining and handling tools, resources, and prompts.
-*   **Data Ingestion Strategy:** Define how the graph will be populated. Agent-driven analysis using standard tools combined with the new specialised graph tools seems like a good starting point. Automated static analysis integration is a potential enhancement.
+*   **Data Ingestion Strategy (Agent-Driven):** The primary initial workflow involves:
+    1.  **Scope Definition:** Agent/user defines the analysis scope (repo, directory).
+    2.  **Information Gathering:** Agent uses standard tools (`list_files`, `read_file`, `search_files`, `execute_command`) to get code, config, etc.
+    3.  **Parsing & Analysis:** Agent internally parses content to identify architectural elements and relationships based on the schema.
+    4.  **Graph Population:** Agent uses the specialised `find_or_create_entity` and `find_or_create_relationship` tools to add/update the graph idempotently.
+    5.  **Stale Marking:** Agent applies the stale marking strategy after processing a scope.
+    6.  **Iteration:** Agent moves to the next scope.
+    This relies on the agent's parsing capabilities and its understanding of the tools via their descriptions. Automated static analysis integration is a potential enhancement.
 *   **Error Handling:** Tool handlers must manage errors gracefully, returning meaningful error information within the `CallToolResult` for the agent to process (e.g., specific error types like `ENTITY_NOT_FOUND`).
 *   **Stale Data Management:** Keeping the graph synchronised requires handling deletions or changes. The proposed "Stale Marking Strategy" involves:
     *   Updating a `lastModifiedAt` timestamp on entities/relationships touched during an analysis run (via `find_or_create_...`).
