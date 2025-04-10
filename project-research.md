@@ -133,7 +133,8 @@ This document summarises the research, goals, and planning for extending the `mc
     *   Implement robust error handling within tools.
     *   Document the expected agent-driven workflow and the stale-marking strategy.
 2.  **Phase 2 (Enhancements):**
-    *   Implement more advanced query tools (`find_dependencies`, `visualise_component`).
+    *   Implement more advanced query tools (`find_dependencies`, `find_dependents`).
+    *   Implement a visualisation helper tool (`get_entity_subgraph`) that returns structured node/relationship data for a given entity and depth, enabling agents to generate diagrams (e.g., Mermaid).
     *   Implement MCP Prompts for common query/analysis patterns (Query Templates).
     *   Optionally implement server-side analysis (`analyse_codebase`) if needed for bulk ingestion performance, addressing multi-language parsing challenges.
     *   Optionally implement MCP Resources for user-controlled views/reports.
