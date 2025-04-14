@@ -48,6 +48,18 @@ type Store interface {
 
 	// GetEntitySubgraph retrieves nodes and relationships around a central entity, suitable for visualisation.
 	GetEntitySubgraph(ctx context.Context, labels []string, identifyingProperties map[string]interface{}, maxDepth int) (SubgraphResult, error)
+
+	// --- Batch Operations ---
+
+	// BatchFindOrCreateEntities finds or creates multiple entities in a single operation.
+	// This is more efficient than making multiple individual calls.
+	// Returns details for all entities in the same order as the input array.
+	BatchFindOrCreateEntities(ctx context.Context, inputs []EntityInput) ([]EntityDetails, []error, error)
+
+	// BatchFindOrCreateRelationships finds or creates multiple relationships in a single operation.
+	// This is more efficient than making multiple individual calls.
+	// Returns properties for all relationships in the same order as the input array.
+	BatchFindOrCreateRelationships(ctx context.Context, inputs []RelationshipInput) ([]map[string]interface{}, []error, error)
 }
 
 // NodeType represents common node types in the knowledge graph

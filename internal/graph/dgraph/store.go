@@ -196,6 +196,32 @@ func (s *DgraphStore) GetEntitySubgraph(ctx context.Context, labels []string, id
 	return graph.SubgraphResult{}, fmt.Errorf("GetEntitySubgraph not implemented for Dgraph")
 }
 
+// --- Batch Operations ---
+
+// BatchFindOrCreateEntities finds or creates multiple entities in a single operation.
+// This is more efficient than making multiple individual calls.
+// Returns details for all entities in the same order as the input array, along with any individual errors.
+func (s *DgraphStore) BatchFindOrCreateEntities(ctx context.Context, inputs []graph.EntityInput) ([]graph.EntityDetails, []error, error) {
+	// Placeholder implementation - Dgraph batch upserts require specific implementation
+	individualErrors := make([]error, len(inputs))
+	for i := range individualErrors {
+		individualErrors[i] = fmt.Errorf("BatchFindOrCreateEntities not implemented for Dgraph")
+	}
+	return nil, individualErrors, fmt.Errorf("BatchFindOrCreateEntities not implemented for Dgraph")
+}
+
+// BatchFindOrCreateRelationships finds or creates multiple relationships in a single operation.
+// This is more efficient than making multiple individual calls.
+// Returns properties for all relationships in the same order as the input array, along with any individual errors.
+func (s *DgraphStore) BatchFindOrCreateRelationships(ctx context.Context, inputs []graph.RelationshipInput) ([]map[string]interface{}, []error, error) {
+	// Placeholder implementation - Dgraph batch edge upserts are complex
+	individualErrors := make([]error, len(inputs))
+	for i := range individualErrors {
+		individualErrors[i] = fmt.Errorf("BatchFindOrCreateRelationships not implemented for Dgraph")
+	}
+	return nil, individualErrors, fmt.Errorf("BatchFindOrCreateRelationships not implemented for Dgraph")
+}
+
 // DeleteNode deletes a node by ID
 func (s *DgraphStore) DeleteNode(ctx context.Context, id string) error {
 	txn := s.client.NewTxn()

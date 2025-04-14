@@ -319,6 +319,83 @@ func (s *Server) SetupTools() {
 		),
 	)
 	s.server.AddTool(getEntitySubgraphTool, s.handleGetEntitySubgraphTool)
+
+	// --- Batch Operation Tools ---
+
+	batchFindOrCreateEntitiesToolTool := mcp.NewTool("batch_find_or_create_entities",
+		mcp.WithDescription("Creates or updates multiple entities in a single operation. This is significantly more efficient than making individual calls, especially when creating many related entities. Use this to add multiple software architecture elements like Functions, Classes, Files, etc., to the graph in one request."),
+		mcp.WithArray("entities",
+			mcp.Required(),
+			mcp.Description("Array of entity definitions to create or update. Each entity follows the same structure as the input to find_or_create_entity."),
+			mcp.Items(map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"labels": map[string]interface{}{
+						"type": "array",
+						"description": "List of labels for the entity (e.g., ['Function', 'Go']). Must include at least one label.",
+						"items": map[string]interface{}{
+							"type": "string",
+						},
+					},
+					"identifyingProperties": map[string]interface{}{
+						"type": "object",
+						"description": "Map of properties used to uniquely identify the entity for matching.",
+					},
+					"properties": map[string]interface{}{
+						"type": "object",
+						"description": "Map of all properties to set on create or merge/update on match.",
+					},
+				},
+				"required": []string{"labels", "identifyingProperties", "properties"},
+			}),
+		),
+	)
+	s.server.AddTool(batchFindOrCreateEntitiesToolTool, s.handleBatchFindOrCreateEntitiesToolTool)
+
+	batchFindOrCreateRelationshipsToolTool := mcp.NewTool("batch_find_or_create_relationships",
+		mcp.WithDescription("Creates or updates multiple relationships in a single operation. This is significantly more efficient than making individual calls, especially when creating many relationships between entities. Use this to add multiple connections like CALLS, DEPENDS_ON, IMPLEMENTS, etc., in one request."),
+		mcp.WithArray("relationships",
+			mcp.Required(),
+			mcp.Description("Array of relationship definitions to create or update. Each relationship follows the same structure as the input to find_or_create_relationship."),
+			mcp.Items(map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"startNodeLabels": map[string]interface{}{
+						"type": "array",
+						"description": "List of labels for the starting node of the relationship.",
+						"items": map[string]interface{}{
+							"type": "string",
+						},
+					},
+					"startNodeIdentifyingProperties": map[string]interface{}{
+						"type": "object",
+						"description": "Map of properties to uniquely identify the starting node.",
+					},
+					"endNodeLabels": map[string]interface{}{
+						"type": "array",
+						"description": "List of labels for the ending node of the relationship.",
+						"items": map[string]interface{}{
+							"type": "string",
+						},
+					},
+					"endNodeIdentifyingProperties": map[string]interface{}{
+						"type": "object",
+						"description": "Map of properties to uniquely identify the ending node.",
+					},
+					"relationshipType": map[string]interface{}{
+						"type": "string",
+						"description": "The type name for the relationship (e.g., 'CALLS', 'DEPENDS_ON').",
+					},
+					"properties": map[string]interface{}{
+						"type": "object",
+						"description": "Optional map of properties to set on the relationship.",
+					},
+				},
+				"required": []string{"startNodeLabels", "startNodeIdentifyingProperties", "endNodeLabels", "endNodeIdentifyingProperties", "relationshipType"},
+			}),
+		),
+	)
+	s.server.AddTool(batchFindOrCreateRelationshipsToolTool, s.handleBatchFindOrCreateRelationshipsToolTool)
 }
 
 // handleQueryTool handles the query_knowledge_graph tool
@@ -957,6 +1034,268 @@ func (s *Server) handleGetEntitySubgraphTool(ctx context.Context, request mcp.Ca
 		return nil, fmt.Errorf("failed to marshal subgraph result: %w", err)
 	}
 	return mcp.NewToolResultText(string(resultJSON)), nil
+}
+
+// handleBatchFindOrCreateEntitiesToolTool handles the batch_find_or_create_entities tool
+func (s *Server) handleBatchFindOrCreateEntitiesToolTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Parse entities array
+	entitiesArg, ok := request.Params.Arguments["entities"]
+	if !ok {
+		return nil, errors.New("entities array is required")
+	}
+
+	entitiesInterface, ok := entitiesArg.([]interface{})
+	if !ok {
+		return nil, errors.New("entities must be an array")
+	}
+
+	if len(entitiesInterface) == 0 {
+		return nil, errors.New("at least one entity is required")
+	}
+
+	// Convert to EntityInput array
+	inputs := make([]graph.EntityInput, len(entitiesInterface))
+	for i, entityInterface := range entitiesInterface {
+		entityMap, ok := entityInterface.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("entity at index %d is not an object", i)
+		}
+
+		// Parse labels
+		labelsArg, ok := entityMap["labels"]
+		if !ok {
+			return nil, fmt.Errorf("labels are required for entity at index %d", i)
+		}
+		labelsInterface, ok := labelsArg.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("labels must be an array of strings for entity at index %d", i)
+		}
+
+		inputs[i].Labels = make([]string, len(labelsInterface))
+		for j, l := range labelsInterface {
+			inputs[i].Labels[j], ok = l.(string)
+			if !ok {
+				return nil, fmt.Errorf("label item at index %d for entity at index %d is not a string", j, i)
+			}
+		}
+		if len(inputs[i].Labels) == 0 {
+			return nil, fmt.Errorf("at least one label is required for entity at index %d", i)
+		}
+
+		// Parse identifyingProperties
+		idPropsArg, ok := entityMap["identifyingProperties"]
+		if !ok {
+			return nil, fmt.Errorf("identifyingProperties are required for entity at index %d", i)
+		}
+		inputs[i].IdentifyingProperties, ok = idPropsArg.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("identifyingProperties must be an object for entity at index %d", i)
+		}
+		if len(inputs[i].IdentifyingProperties) == 0 {
+			return nil, fmt.Errorf("at least one identifying property is required for entity at index %d", i)
+		}
+
+		// Parse properties
+		propsArg, ok := entityMap["properties"]
+		if !ok {
+			return nil, fmt.Errorf("properties are required for entity at index %d", i)
+		}
+		inputs[i].Properties, ok = propsArg.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("properties must be an object for entity at index %d", i)
+		}
+	}
+
+	// Call graph store method
+	results, individualErrors, err := s.graph.BatchFindOrCreateEntities(ctx, inputs)
+
+	// Prepare response
+	response := struct {
+		Results         []graph.EntityDetails `json:"results"`
+		IndividualErrors []string             `json:"individualErrors,omitempty"`
+		Error           string                `json:"error,omitempty"`
+	}{
+		Results: results,
+	}
+
+	// Handle individual errors
+	if individualErrors != nil {
+		errorMessages := make([]string, 0)
+		for i, err := range individualErrors {
+			if err != nil {
+				errorMessages = append(errorMessages, fmt.Sprintf("Error at index %d: %s", i, err.Error()))
+			}
+		}
+		if len(errorMessages) > 0 {
+			response.IndividualErrors = errorMessages
+		}
+	}
+
+	// Handle overall error
+	if err != nil {
+		response.Error = err.Error()
+	}
+
+	// Return the results
+	responseJSON, err := json.Marshal(response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal batch results: %w", err)
+	}
+
+	return mcp.NewToolResultText(string(responseJSON)), nil
+}
+
+// handleBatchFindOrCreateRelationshipsToolTool handles the batch_find_or_create_relationships tool
+func (s *Server) handleBatchFindOrCreateRelationshipsToolTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Parse relationships array
+	relationshipsArg, ok := request.Params.Arguments["relationships"]
+	if !ok {
+		return nil, errors.New("relationships array is required")
+	}
+
+	relationshipsInterface, ok := relationshipsArg.([]interface{})
+	if !ok {
+		return nil, errors.New("relationships must be an array")
+	}
+
+	if len(relationshipsInterface) == 0 {
+		return nil, errors.New("at least one relationship is required")
+	}
+
+	// Convert to RelationshipInput array
+	inputs := make([]graph.RelationshipInput, len(relationshipsInterface))
+	for i, relInterface := range relationshipsInterface {
+		relMap, ok := relInterface.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("relationship at index %d is not an object", i)
+		}
+
+		// Parse startNodeLabels
+		startLabelsArg, ok := relMap["startNodeLabels"]
+		if !ok {
+			return nil, fmt.Errorf("startNodeLabels are required for relationship at index %d", i)
+		}
+		startLabelsInterface, ok := startLabelsArg.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("startNodeLabels must be an array of strings for relationship at index %d", i)
+		}
+
+		inputs[i].StartNodeLabels = make([]string, len(startLabelsInterface))
+		for j, l := range startLabelsInterface {
+			inputs[i].StartNodeLabels[j], ok = l.(string)
+			if !ok {
+				return nil, fmt.Errorf("startNodeLabel item at index %d for relationship at index %d is not a string", j, i)
+			}
+		}
+		if len(inputs[i].StartNodeLabels) == 0 {
+			return nil, fmt.Errorf("at least one startNodeLabel is required for relationship at index %d", i)
+		}
+
+		// Parse startNodeIdentifyingProperties
+		startIdPropsArg, ok := relMap["startNodeIdentifyingProperties"]
+		if !ok {
+			return nil, fmt.Errorf("startNodeIdentifyingProperties are required for relationship at index %d", i)
+		}
+		inputs[i].StartNodeIdentifyingProperties, ok = startIdPropsArg.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("startNodeIdentifyingProperties must be an object for relationship at index %d", i)
+		}
+		if len(inputs[i].StartNodeIdentifyingProperties) == 0 {
+			return nil, fmt.Errorf("at least one startNodeIdentifyingProperty is required for relationship at index %d", i)
+		}
+
+		// Parse endNodeLabels
+		endLabelsArg, ok := relMap["endNodeLabels"]
+		if !ok {
+			return nil, fmt.Errorf("endNodeLabels are required for relationship at index %d", i)
+		}
+		endLabelsInterface, ok := endLabelsArg.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("endNodeLabels must be an array of strings for relationship at index %d", i)
+		}
+
+		inputs[i].EndNodeLabels = make([]string, len(endLabelsInterface))
+		for j, l := range endLabelsInterface {
+			inputs[i].EndNodeLabels[j], ok = l.(string)
+			if !ok {
+				return nil, fmt.Errorf("endNodeLabel item at index %d for relationship at index %d is not a string", j, i)
+			}
+		}
+		if len(inputs[i].EndNodeLabels) == 0 {
+			return nil, fmt.Errorf("at least one endNodeLabel is required for relationship at index %d", i)
+		}
+
+		// Parse endNodeIdentifyingProperties
+		endIdPropsArg, ok := relMap["endNodeIdentifyingProperties"]
+		if !ok {
+			return nil, fmt.Errorf("endNodeIdentifyingProperties are required for relationship at index %d", i)
+		}
+		inputs[i].EndNodeIdentifyingProperties, ok = endIdPropsArg.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("endNodeIdentifyingProperties must be an object for relationship at index %d", i)
+		}
+		if len(inputs[i].EndNodeIdentifyingProperties) == 0 {
+			return nil, fmt.Errorf("at least one endNodeIdentifyingProperty is required for relationship at index %d", i)
+		}
+
+		// Parse relationshipType
+		relTypeArg, ok := relMap["relationshipType"]
+		if !ok {
+			return nil, fmt.Errorf("relationshipType is required for relationship at index %d", i)
+		}
+		inputs[i].RelationshipType, ok = relTypeArg.(string)
+		if !ok || inputs[i].RelationshipType == "" {
+			return nil, fmt.Errorf("relationshipType must be a non-empty string for relationship at index %d", i)
+		}
+
+		// Parse properties (optional)
+		if propsArg, exists := relMap["properties"]; exists && propsArg != nil {
+			inputs[i].Properties, ok = propsArg.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("properties must be an object for relationship at index %d", i)
+			}
+		} else {
+			inputs[i].Properties = make(map[string]interface{}) // Ensure it's not nil
+		}
+	}
+
+	// Call graph store method
+	results, individualErrors, err := s.graph.BatchFindOrCreateRelationships(ctx, inputs)
+
+	// Prepare response
+	response := struct {
+		Results         []map[string]interface{} `json:"results"`
+		IndividualErrors []string                `json:"individualErrors,omitempty"`
+		Error           string                   `json:"error,omitempty"`
+	}{
+		Results: results,
+	}
+
+	// Handle individual errors
+	if individualErrors != nil {
+		errorMessages := make([]string, 0)
+		for i, err := range individualErrors {
+			if err != nil {
+				errorMessages = append(errorMessages, fmt.Sprintf("Error at index %d: %s", i, err.Error()))
+			}
+		}
+		if len(errorMessages) > 0 {
+			response.IndividualErrors = errorMessages
+		}
+	}
+
+	// Handle overall error
+	if err != nil {
+		response.Error = err.Error()
+	}
+
+	// Return the results
+	responseJSON, err := json.Marshal(response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal batch results: %w", err)
+	}
+
+	return mcp.NewToolResultText(string(responseJSON)), nil
 }
 
 

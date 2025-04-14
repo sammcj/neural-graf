@@ -35,6 +35,38 @@ func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
 }
 
+// BatchFindOrCreateEntities mocks base method.
+func (m *MockStore) BatchFindOrCreateEntities(ctx context.Context, inputs []graph.EntityInput) ([]graph.EntityDetails, []error, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BatchFindOrCreateEntities", ctx, inputs)
+	ret0, _ := ret[0].([]graph.EntityDetails)
+	ret1, _ := ret[1].([]error)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// BatchFindOrCreateEntities indicates an expected call of BatchFindOrCreateEntities.
+func (mr *MockStoreMockRecorder) BatchFindOrCreateEntities(ctx, inputs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchFindOrCreateEntities", reflect.TypeOf((*MockStore)(nil).BatchFindOrCreateEntities), ctx, inputs)
+}
+
+// BatchFindOrCreateRelationships mocks base method.
+func (m *MockStore) BatchFindOrCreateRelationships(ctx context.Context, inputs []graph.RelationshipInput) ([]map[string]interface{}, []error, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BatchFindOrCreateRelationships", ctx, inputs)
+	ret0, _ := ret[0].([]map[string]interface{})
+	ret1, _ := ret[1].([]error)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// BatchFindOrCreateRelationships indicates an expected call of BatchFindOrCreateRelationships.
+func (mr *MockStoreMockRecorder) BatchFindOrCreateRelationships(ctx, inputs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchFindOrCreateRelationships", reflect.TypeOf((*MockStore)(nil).BatchFindOrCreateRelationships), ctx, inputs)
+}
+
 // CreateEdge mocks base method.
 func (m *MockStore) CreateEdge(ctx context.Context, fromID, toID, relationshipType string, properties map[string]interface{}) (string, error) {
 	m.ctrl.T.Helper()

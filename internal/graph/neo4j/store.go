@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -1082,6 +1083,128 @@ func (s *Neo4jStore) FindDependents(ctx context.Context, labels []string, identi
 		Depth:      maxDepth,
 		Direction:  "dependents",
 	}, nil
+}
+
+// BatchFindOrCreateEntities finds or creates multiple entities in a single operation.
+// This is more efficient than making multiple individual calls.
+// Returns details for all entities in the same order as the input array, along with any individual errors.
+func (s *Neo4jStore) BatchFindOrCreateEntities(ctx context.Context, inputs []graph.EntityInput) ([]graph.EntityDetails, []error, error) {
+	if len(inputs) == 0 {
+		return nil, nil, fmt.Errorf("at least one entity input is required")
+	}
+
+	// Prepare results and errors slices with the same length as inputs
+	results := make([]graph.EntityDetails, len(inputs))
+	individualErrors := make([]error, len(inputs))
+
+	// Process entities in parallel with a reasonable concurrency limit
+	concurrencyLimit := 10
+	if len(inputs) < concurrencyLimit {
+		concurrencyLimit = len(inputs)
+	}
+
+	// Create a semaphore channel to limit concurrency
+	sem := make(chan struct{}, concurrencyLimit)
+	var wg sync.WaitGroup
+
+	// Process each entity input
+	for i, input := range inputs {
+		wg.Add(1)
+		sem <- struct{}{} // Acquire semaphore
+
+		go func(index int, entityInput graph.EntityInput) {
+			defer wg.Done()
+			defer func() { <-sem }() // Release semaphore
+
+			// Use the existing FindOrCreateEntity method for each entity
+			result, err := s.FindOrCreateEntity(ctx, entityInput)
+			if err != nil {
+				individualErrors[index] = fmt.Errorf("error processing entity at index %d: %w", index, err)
+				return
+			}
+
+			results[index] = result
+		}(i, input)
+	}
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+
+	// Check if any individual operations failed
+	var failedCount int
+	for _, err := range individualErrors {
+		if err != nil {
+			failedCount++
+		}
+	}
+
+	// Return results and individual errors
+	if failedCount > 0 {
+		return results, individualErrors, fmt.Errorf("%d out of %d entity operations failed", failedCount, len(inputs))
+	}
+
+	return results, individualErrors, nil
+}
+
+// BatchFindOrCreateRelationships finds or creates multiple relationships in a single operation.
+// This is more efficient than making multiple individual calls.
+// Returns properties for all relationships in the same order as the input array, along with any individual errors.
+func (s *Neo4jStore) BatchFindOrCreateRelationships(ctx context.Context, inputs []graph.RelationshipInput) ([]map[string]interface{}, []error, error) {
+	if len(inputs) == 0 {
+		return nil, nil, fmt.Errorf("at least one relationship input is required")
+	}
+
+	// Prepare results and errors slices with the same length as inputs
+	results := make([]map[string]interface{}, len(inputs))
+	individualErrors := make([]error, len(inputs))
+
+	// Process relationships in parallel with a reasonable concurrency limit
+	concurrencyLimit := 10
+	if len(inputs) < concurrencyLimit {
+		concurrencyLimit = len(inputs)
+	}
+
+	// Create a semaphore channel to limit concurrency
+	sem := make(chan struct{}, concurrencyLimit)
+	var wg sync.WaitGroup
+
+	// Process each relationship input
+	for i, input := range inputs {
+		wg.Add(1)
+		sem <- struct{}{} // Acquire semaphore
+
+		go func(index int, relInput graph.RelationshipInput) {
+			defer wg.Done()
+			defer func() { <-sem }() // Release semaphore
+
+			// Use the existing FindOrCreateRelationship method for each relationship
+			result, err := s.FindOrCreateRelationship(ctx, relInput)
+			if err != nil {
+				individualErrors[index] = fmt.Errorf("error processing relationship at index %d: %w", index, err)
+				return
+			}
+
+			results[index] = result
+		}(i, input)
+	}
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+
+	// Check if any individual operations failed
+	var failedCount int
+	for _, err := range individualErrors {
+		if err != nil {
+			failedCount++
+		}
+	}
+
+	// Return results and individual errors
+	if failedCount > 0 {
+		return results, individualErrors, fmt.Errorf("%d out of %d relationship operations failed", failedCount, len(inputs))
+	}
+
+	return results, individualErrors, nil
 }
 
 // GetEntitySubgraph retrieves nodes and relationships around a central entity up to a specified depth,
